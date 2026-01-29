@@ -11,7 +11,7 @@ Reconcile decision annotations in source code with generated documentation.
 ## Usage
 
 ```
-/project:surface [flags]
+/surface [flags]
 ```
 
 ## Flags

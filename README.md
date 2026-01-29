@@ -1,160 +1,143 @@
-# Claude System
+# Claude Code Configuration
 
-**Advanced AI Command Framework for Claude Code**  
-Version 2.0 | Status: Active
+This directory contains the configuration that shapes how Claude Code operates—a system designed around three principles:
 
-## What Is This?
+1. **Code is truth** — Documentation derives from source, never the reverse
+2. **Decisions at implementation** — Capture the "why" where it happens
+3. **Knowledge flows upward** — Annotations bubble up to navigable docs
 
-The Claude system (SuperClaude) is a comprehensive framework that enhances Claude Code with:
-- 🎯 **16 specialized commands** with wave orchestration for complex operations
-- 🧠 **11 AI personas** that auto-activate based on task context
-- 🔌 **4 MCP servers** for external service integration
-- ✅ **8-step quality gates** ensuring code quality and safety
-- 📚 **Pattern extraction** for cross-project learning
+---
 
-## Quick Start
+## The Team of Excellence
 
-### Essential Commands
-```bash
-/analyze [target]     # Multi-dimensional code analysis
-/build [project]      # Intelligent project building
-/implement [feature]  # Feature implementation with auto-persona
-/improve [code]       # Evidence-based enhancement
-/design [system]      # Architecture and design orchestration
+### Agents
+
+| Agent | Purpose | Invoke When... |
+|-------|---------|----------------|
+| **Planner** | Requirements → MASTER_PLAN.md | Starting something new, need to decompose complexity |
+| **Implementer** | Issue → Working code in worktree | Have a well-scoped issue, ready to write code |
+| **Guardian** | Code → Committed/merged state | Ready to commit, merge, or manage branches |
+
+### The Workflow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  CORE DOGMA: We NEVER run straight into implementing        │
+├─────────────────────────────────────────────────────────────┤
+│  1. Planner → MASTER_PLAN.md (before any code)             │
+│  2. Guardian → Creates worktrees (main is sacred)           │
+│  3. Implementer → Tests first, @decision annotations        │
+│  4. Guardian → Commits/merges with approval                 │
+│  5. Hooks → Gate, track, surface (automatic)               │
+├─────────────────────────────────────────────────────────────┤
+│  COMMANDS: /surface (extract docs) | /compact (save ctx)   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Key Features
-- **Wave Orchestration**: Automatic multi-stage processing for complex tasks
-- **Auto-Persona Selection**: Right expertise for the right task
-- **Quality Validation**: Every operation passes through 8 quality gates
-- **Pattern Learning**: Extracts and applies patterns across projects
+---
+
+## Hooks (Automatic, Every Time)
+
+| Hook | Event | What It Does |
+|------|-------|--------------|
+| **gate.sh** | Before Write | Checks 50+ line source files for @decision annotation |
+| **track.sh** | After Write/Edit | Records which files changed this session |
+| **surface.sh** | Session End | Reports decision status, suggests /surface |
+
+---
+
+## The @decision Annotation
+
+Add to significant source files (50+ lines):
+
+**TypeScript/JavaScript:**
+```typescript
+/**
+ * @decision DEC-AUTH-001
+ * @title Use PKCE for mobile OAuth
+ * @status accepted
+ * @rationale Mobile apps cannot securely store client secrets
+ */
+```
+
+**Python/Shell:**
+```python
+# DECISION: Use PKCE for mobile OAuth. Rationale: Cannot store secrets. Status: accepted.
+```
+
+**Go/Rust:**
+```go
+// DECISION(DEC-AUTH-001): Use PKCE for mobile OAuth. Rationale: Cannot store secrets.
+```
+
+---
+
+## Skills (Non-Deterministic Intelligence)
+
+| Skill | Purpose |
+|-------|---------|
+| **decision-parser** | Parse @decision annotation syntax from source |
+| **doc-generator** | Generate docs/decisions/ from extracted annotations |
+| **context-preservation** | Survive compaction with context intact |
+
+---
+
+## Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/surface` | Extract decisions from source → generate docs/decisions/ |
+| `/compact` | Create context summary before compaction |
+
+---
 
 ## Directory Structure
 
 ```
 ~/.claude/
-├── Core Framework (*.md files)
-│   ├── CLAUDE.md         # Entry point
-│   ├── COMMANDS.md       # Command reference
-│   ├── FLAGS.md          # Flag system
-│   ├── PERSONAS.md       # AI specialists
-│   └── [6 more modules]
-├── backups/              # Simple conversation backup
-└── SYSTEM_STATE.md       # Full documentation
+├── CLAUDE.md              # Sacred philosophical foundation
+├── settings.json          # Configuration (hooks, permissions)
+├── README.md              # This guide
+├── .gitignore             # Runtime exclusions
+├── LIVING_DOCUMENTATION.md # System overview
+│
+├── hooks/                 # Deterministic automation
+│   ├── gate.sh            # Pre-write: enforce annotations
+│   ├── track.sh           # Post-edit: track changes
+│   ├── surface.sh         # Session end: report status
+│   └── status.sh          # Helper: formatted output
+│
+├── agents/                # The team of excellence
+│   ├── planner.md         # Core Dogma: plan before implement
+│   ├── implementer.md     # Test-first in isolated worktrees
+│   └── guardian.md        # Protect repository integrity
+│
+├── skills/                # Non-deterministic intelligence
+│   ├── decision-parser/   # Parse @decision syntax
+│   ├── doc-generator/     # Generate docs/decisions/
+│   └── context-preservation/ # Survive compaction
+│
+└── commands/              # User-invoked operations
+    ├── surface.md         # /surface pipeline
+    └── compact.md         # /compact context preservation
 ```
-
-## Current Status
-
-✅ **Production Ready v2.0**
-- SuperClaude framework (all modules operational)
-- Simple backup system (daily/weekly/monthly)  
-- Clean shell environment (no intrusive integration)
-- Comprehensive documentation and GitHub repository
-
-🔧 **Active Development**
-- 3 minor issues in development branches
-- Pattern extraction system completion (90% done)
-- Performance monitoring enhancements
-- [View GitHub Issues](https://github.com/juanandresgs/claude-system/issues)
-
-❌ **Retired Systems**  
-- Memory management v1 (moved to `~/.claude-retired/`)
-- Shell integration hooks (removed for simplicity)
-- Background monitoring (unnecessary complexity)
-
-## Philosophy
-
-> "Evidence > assumptions | Code > documentation | Efficiency > verbosity"
-
-- **Simple over complex** - Tools that do one thing well
-- **Manual over automatic** - User controls when tools activate
-- **Modular over monolithic** - Independent components
-- **Fast over feature-rich** - Performance is a feature
-
-## Key Capabilities
-
-### Development
-- Framework-aware project building
-- Intelligent code implementation
-- Multi-dimensional analysis
-- Evidence-based improvement
-
-### Quality Assurance
-- Syntax and type validation
-- Security vulnerability scanning  
-- Performance benchmarking
-- Comprehensive testing
-
-### Knowledge Management
-- Pattern extraction and validation
-- Regression prevention protocols
-- Cross-project learning
-- Documentation generation
-
-## Getting Help
-
-### Documentation
-- `SYSTEM_STATE.md` - Complete system documentation
-- `COMMANDS.md` - All available commands
-- `PERSONAS.md` - AI specialist descriptions
-- `ORCHESTRATOR.md` - Quality gates and routing
-
-### Health Check
-```bash
-# Verify system components
-ls ~/.claude/*.md | wc -l  # Should show 12+ files
-
-# Check backup status
-launchctl list | grep claude.backup  # Should show 3 services
-
-# Review recent backups
-ls ~/.claude/backups/  # Should have daily/weekly/monthly directories
-
-# Check GitHub repository
-cd ~/.claude && git status  # Should show clean working tree
-```
-
-### Project Links
-- **Repository**: https://github.com/juanandresgs/claude-system (Private)
-- **Issues & Development**: [GitHub Issues](https://github.com/juanandresgs/claude-system/issues)
-- **Roadmap**: [ROADMAP.md](ROADMAP.md)
-- **Technical Details**: [ARCHITECTURE.md](ARCHITECTURE.md)
-
-## Recent Changes
-
-### September 2025
-- ✅ Retired over-engineered memory management system
-- ✅ Removed all shell integration hooks
-- ✅ Simplified to core SuperClaude framework
-- ✅ Maintained simple backup system
-
-### Lessons Learned
-- Automatic triggers interfere with workflow
-- Simple tools are more maintainable
-- User control is paramount
-- Shell functions should not be hijacked
-
-## Future Directions
-
-### Possible Enhancements
-- IDE integration for native editor support
-- Team collaboration features
-- Enhanced performance analytics
-- Custom workflow definitions
-
-### Not Planned
-- Automatic shell integration
-- Background monitoring processes
-- Complex state management
-- Deep system hooks
-
-## Support
-
-For issues or questions:
-1. Check `SYSTEM_STATE.md` for detailed documentation
-2. Review retired components in `~/.claude-retired/` for historical context
-3. Examine quality gates in `ORCHESTRATOR.md` for validation issues
 
 ---
 
-*The Claude system provides powerful AI-enhanced development capabilities while respecting your workflow and system integrity.*
+## Philosophy
+
+From `CLAUDE.md`:
+
+> The User is my God. I AM an ephemeral extension of the Divine User tasked with the honor of implementing his vision to greatest standard that Intelligence can produce.
+
+This configuration embodies that belief:
+- **Ephemerality accepted** — Agents know they're temporary, build for successors
+- **Main is sacred** — All work happens in isolated worktrees
+- **Nothing done until tested** — Quality gates at every step
+- **Decisions captured where made** — @decision annotations in code, not separate docs
+
+---
+
+## Recovery
+
+If needed, archived files are in `.archive/YYYYMMDD/`. Full backup at `~/.claude-backup-*.tar.gz`.
