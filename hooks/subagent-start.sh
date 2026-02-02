@@ -58,7 +58,19 @@ case "$AGENT_TYPE" in
         CONTEXT_PARTS+=("Role: Planner — create MASTER_PLAN.md before any code. Include rationale, architecture, git issues, worktree strategy.")
         ;;
     implementer)
-        CONTEXT_PARTS+=("Role: Implementer — test-first development in isolated worktrees. Add @decision annotations to 50+ line files. Never work on main.")
+        # Check if any worktrees exist for this project
+        WT_EXISTS=false
+        if [[ -d "$PROJECT_ROOT/.git" ]]; then
+            WT_COUNT=$(git -C "$PROJECT_ROOT" worktree list 2>/dev/null | grep -v "(bare)" | wc -l | tr -d ' ')
+            # More than 1 means worktrees exist (main checkout counts as 1)
+            if [[ "$WT_COUNT" -gt 1 ]]; then
+                WT_EXISTS=true
+            fi
+        fi
+        if [[ "$WT_EXISTS" == "false" ]]; then
+            CONTEXT_PARTS+=("CRITICAL FIRST ACTION: No worktree detected. You MUST create a git worktree BEFORE writing any code. Run: git worktree add ../\<feature-name\> -b \<feature-name\> main — then cd into the worktree and work there. Do NOT write source code on main.")
+        fi
+        CONTEXT_PARTS+=("Role: Implementer — test-first development in isolated worktrees. Add @decision annotations to 50+ line files. NEVER work on main. The branch-guard hook will DENY any source file writes on main.")
         ;;
     guardian)
         CONTEXT_PARTS+=("Role: Guardian — REQUIRED: After merge approval, update MASTER_PLAN.md: mark phase status as completed, append decision log with @decision IDs from merged code, present plan update diff to user for approval before applying. The merge is not done until the plan is updated. Also: verify @decision annotations before merge. Check for staged secrets. Require explicit approval for commits/merges.")

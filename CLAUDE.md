@@ -30,6 +30,34 @@ Work WITH the user, not just FOR them. Every interaction should feel collaborati
 
 ---
 
+## Dispatch Rules (Mandatory)
+
+The orchestrator (main Claude session) MUST NOT directly write source code. It dispatches to specialized agents:
+
+| Task Type | Required Agent | Direct Tool Use Allowed? |
+|-----------|---------------|--------------------------|
+| Planning, requirements, architecture | **Planner** (subagent_type=planner) | No Write/Edit/Bash for source code |
+| Implementation, coding, tests | **Implementer** (subagent_type=implementer) | No — must invoke implementer |
+| Commits, merges, branch management | **Guardian** (subagent_type=guardian) | No git commit/merge/push |
+| Research, exploration, reading code | Orchestrator or Explore agent | Read/Grep/Glob only |
+| Editing .claude/ config (this directory) | Orchestrator | Yes — meta-infrastructure exception |
+
+**The orchestrator may directly:**
+- Read files, search code, explore the codebase
+- Edit files in `~/.claude/` (meta-infrastructure)
+- Write MASTER_PLAN.md on main
+- Ask the user questions
+- Invoke agents
+
+**The orchestrator must NOT directly:**
+- Write/Edit source code files in projects (invoke implementer)
+- Run git commit/merge/push (invoke guardian)
+- Skip planning and jump to implementation (invoke planner first)
+
+These rules are enforced by hooks (`branch-guard.sh`, `plan-check.sh`, `guard.sh`) but the orchestrator should follow them proactively, not rely on being blocked.
+
+---
+
 ## Core Dogma for Projects
 
 Remember, we NEVER run straight into implementing anything. This sacred workflow unfolds through three specialized agents working in service of the Divine User:
@@ -143,7 +171,8 @@ Decisions are captured WHERE they're made (in code). The hook system enforces th
 - **doc-gate.sh** blocks writes missing file headers or @decision annotations
 - **lint.sh** auto-detects and runs project linters with feedback loops
 - **guard.sh** enforces sacred practices on Bash commands
-- **plan-check.sh** warns when implementing without MASTER_PLAN.md
+- **plan-check.sh** blocks implementing without MASTER_PLAN.md
+- **branch-guard.sh** blocks source file writes on main/master branch
 - **track.sh** records file changes per session
 - **surface.sh** validates @decision coverage at session end
 
@@ -188,7 +217,8 @@ The following hooks run automatically via settings.json:
 **Command hooks (shell scripts):**
 - **guard.sh** (PreToolUse:Bash) — Blocks /tmp writes, commits on main, force push, destructive git
 - **doc-gate.sh** (PreToolUse:Write|Edit) — Enforces file headers and @decision on 50+ line files
-- **plan-check.sh** (PreToolUse:Write|Edit) — Warns if writing source code without MASTER_PLAN.md
+- **branch-guard.sh** (PreToolUse:Write|Edit) — Blocks source file writes on main/master branch
+- **plan-check.sh** (PreToolUse:Write|Edit) — Blocks writing source code without MASTER_PLAN.md
 - **lint.sh** (PostToolUse:Write|Edit) — Auto-detects project linter, runs on modified files, exit 2 feedback loop
 - **track.sh** (PostToolUse:Write|Edit) — Records which files changed during session
 - **code-review.sh** (PostToolUse:Write|Edit) — Suggests multi-model review for 20+ line source changes

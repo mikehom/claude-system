@@ -87,6 +87,11 @@
         "hooks": [
           {
             "type": "command",
+            "command": "$HOME/.claude/hooks/branch-guard.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
             "command": "$HOME/.claude/hooks/doc-gate.sh",
             "timeout": 5
           },
@@ -190,6 +195,16 @@
           {
             "type": "prompt",
             "prompt": "Check if the implementer's output includes: 1) A summary of what was built, 2) Test results showing it works, 3) Verification instructions the user can follow. If any of these are missing, return ok=false with specific feedback about what's needed.",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "guardian",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "The Guardian agent has finished. Verify completeness: 1) If a merge was performed, was MASTER_PLAN.md updated with the phase status and decision log? If merge happened but MASTER_PLAN.md was NOT modified, return ok=false with reason: 'Guardian must update MASTER_PLAN.md after merge: mark phase status, append decision log with @decision IDs from merged code.' 2) Were @decision annotations verified before any merge? 3) Was explicit user approval obtained before commits/merges? If no merge was performed (e.g., only worktree creation or branch management), these checks are not required — return ok=true. Context: $ARGUMENTS",
             "timeout": 30
           }
         ]

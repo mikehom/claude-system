@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Plan-first enforcement: warn if writing source code without MASTER_PLAN.md.
+# Plan-first enforcement: BLOCK writing source code without MASTER_PLAN.md.
 # PreToolUse hook — matcher: Write|Edit
 #
-# Warns (does not block) when:
+# DECISION: Hard deny for planless source writes. Rationale: Advisory warnings
+# were ignored by agents — Sacred Practice #6 requires hard enforcement. Status: accepted.
+#
+# Denies (hard block) when:
 #   - Writing a source code file (not config, not test, not docs)
 #   - The project root has no MASTER_PLAN.md
 #   - The project is a git repo (not a one-off directory)
@@ -45,10 +48,12 @@ if [[ ! -f "$PROJECT_ROOT/MASTER_PLAN.md" ]]; then
 {
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
-    "additionalContext": "No MASTER_PLAN.md found in $PROJECT_ROOT. Per Core Dogma, create a plan before implementing. Sacred Practice #6: We NEVER run straight into implementing anything."
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "BLOCKED: No MASTER_PLAN.md in $PROJECT_ROOT. Sacred Practice #6: We NEVER run straight into implementing anything. Create a plan first: invoke the Planner agent to produce MASTER_PLAN.md, then retry."
   }
 }
 EOF
+    exit 0
 fi
 
 exit 0

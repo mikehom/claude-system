@@ -97,11 +97,16 @@ extract_git_target_dir() {
 }
 
 # --- Check 2: Main is sacred (no commits on main/master) ---
+# Exception: the ~/.claude directory itself is meta-infrastructure that commits directly to main.
 if echo "$COMMAND" | grep -qE 'git\s+commit'; then
     TARGET_DIR=$(extract_git_target_dir "$COMMAND")
-    CURRENT_BRANCH=$(git -C "$TARGET_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
-    if [[ "$CURRENT_BRANCH" == "main" || "$CURRENT_BRANCH" == "master" ]]; then
-        deny "Cannot commit directly to $CURRENT_BRANCH. Sacred Practice #2: Main is sacred. Create a worktree: git worktree add ../feature-name $CURRENT_BRANCH"
+    REPO_ROOT=$(git -C "$TARGET_DIR" rev-parse --show-toplevel 2>/dev/null || echo "")
+    # Skip if this is the .claude config directory (meta-infrastructure)
+    if [[ "$REPO_ROOT" != */.claude ]]; then
+        CURRENT_BRANCH=$(git -C "$TARGET_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+        if [[ "$CURRENT_BRANCH" == "main" || "$CURRENT_BRANCH" == "master" ]]; then
+            deny "Cannot commit directly to $CURRENT_BRANCH. Sacred Practice #2: Main is sacred. Create a worktree: git worktree add ../feature-name $CURRENT_BRANCH"
+        fi
     fi
 fi
 
