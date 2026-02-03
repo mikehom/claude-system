@@ -59,6 +59,7 @@
     "ask": [],
     "defaultMode": "plan"
   },
+  "model": "opus",
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "context7",
@@ -264,5 +265,7 @@
   "installation": {
     "method": "native"
   },
-  "model": "opus"
+  "enabledPlugins": {
+    "frontend-design@claude-code-plugins": true
+  }
 }

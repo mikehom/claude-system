@@ -56,6 +56,47 @@ The orchestrator (main Claude session) MUST NOT directly write source code. It d
 
 These rules are enforced by hooks (`branch-guard.sh`, `plan-check.sh`, `guard.sh`) but the orchestrator should follow them proactively, not rely on being blocked.
 
+### Handling Subagent Approval Requests
+
+Specialized agents (Guardian, Planner, Implementer) are **interactive** — they handle approval requests within their session rather than exiting after asking. As the orchestrator, you should understand this flow:
+
+**What Agents Do (After Fix):**
+1. Present their plan/operation with full details
+2. Explicitly ask: "Do you approve? Reply 'yes' to proceed, or provide modifications."
+3. Wait for user response **in the same conversation**
+4. Process the response:
+   - Approved → Execute operation, confirm results, suggest next steps
+   - Rejected → Ask what to change, adjust plan
+   - Modified → Update and re-present
+5. Never end with just an approval question
+
+**What You (Orchestrator) Should Do:**
+
+- **Trust agents to handle approval interactively** — Modern agents wait for user response and complete their operations
+- **If an agent asks approval and exits** (broken behavior from old agents):
+  1. Don't immediately re-invoke — let the user respond first
+  2. When user responds affirmatively → Re-invoke agent: "The user approved. Proceed with [operation]."
+  3. When user rejects → Ask what to change, then re-invoke with updates
+- **When invoking agents for approval-requiring tasks**, expect them to:
+  - Present the plan
+  - Get approval
+  - Execute the operation
+  - Confirm results
+  - Return with completion status
+
+**Example:**
+```
+User: "Merge the auth feature to main"
+Orchestrator: [Invokes Guardian with merge request]
+Guardian: "Here's the merge plan... Do you approve? Reply 'yes' to proceed."
+User: "yes"
+Guardian: "Executing merge... Done. Main now includes auth. Tests passing. Want me to start Phase 2?"
+[Guardian returns to orchestrator with completion status]
+Orchestrator: [Sees Guardian completed merge successfully, continues conversation]
+```
+
+The goal: **No user should ever see "Approve the merge?" followed by a blinking cursor.** Agents handle the full interaction cycle before returning control.
+
 ---
 
 ## Core Dogma for Projects
@@ -165,6 +206,12 @@ Documentation that lives outside source code drifts from reality and eventually 
 
 We capture decisions at the point of implementation—the lowest level where the decision actually lives. From there, knowledge bubbles up automatically into navigable documentation.
 
+### When Code and Plan Diverge
+
+Code is truth for **implementation details** (how). Plan is truth for **scope and intent** (what/why). When they diverge:
+- **HOW divergence** (different algorithm, different library): Code wins. The @decision annotation captures rationale. Guardian updates the plan at phase boundaries.
+- **WHAT divergence** (wrong feature, missing scope): Plan wins. This is a bug or scope creep, not a decision. Requires explicit user approval to resolve.
+
 ### Implementation: Living Documentation System
 
 Decisions are captured WHERE they're made (in code). The hook system enforces this automatically:
@@ -218,7 +265,8 @@ The following hooks run automatically via settings.json:
 - **guard.sh** (PreToolUse:Bash) — Blocks /tmp writes, commits on main, force push, destructive git
 - **doc-gate.sh** (PreToolUse:Write|Edit) — Enforces file headers and @decision on 50+ line files
 - **branch-guard.sh** (PreToolUse:Write|Edit) — Blocks source file writes on main/master branch
-- **plan-check.sh** (PreToolUse:Write|Edit) — Blocks writing source code without MASTER_PLAN.md
+- **plan-check.sh** (PreToolUse:Write|Edit) — Blocks writing source code without MASTER_PLAN.md (fast-mode: skips Edits and small <20 line writes)
+- **dispatch-advisory.sh** (PreToolUse:Write|Edit) — Advisory warning when orchestrator writes source code directly
 - **lint.sh** (PostToolUse:Write|Edit) — Auto-detects project linter, runs on modified files, exit 2 feedback loop
 - **track.sh** (PostToolUse:Write|Edit) — Records which files changed during session
 - **code-review.sh** (PostToolUse:Write|Edit) — Suggests multi-model review for 20+ line source changes
@@ -228,13 +276,14 @@ The following hooks run automatically via settings.json:
 - **subagent-start.sh** (SubagentStart) — Agent-specific context injection
 - **session-init.sh** (SessionStart) — Injects git state, MASTER_PLAN.md status, active worktrees
 - **compact-preserve.sh** (PreCompact) — Preserves git state and session context before compaction
-- **surface.sh** (Stop) — Validates @decision coverage and reports audit at session end
+- **surface.sh** (Stop) — Validates @decision coverage, status-aware reconciliation, and reports audit at session end
+- **forward-motion.sh** (Stop) — Checks response ends with forward motion (regex, not AI agent)
 - **session-end.sh** (SessionEnd) — Cleanup session tracking artifacts
 
-**AI-model hooks (haiku prompts/agents):**
-- Safety evaluation (PreToolUse:Bash) — Evaluates bash commands for danger
-- Documentation review (PostToolUse:Write|Edit) — Checks file headers, @decision, and comments
+**AI-model hooks (agents):**
 - Plan completeness (SubagentStop:planner) — Validates planner output quality
+- Implementation quality (SubagentStop:implementer) — Validates implementer output
+- Guardian completeness (SubagentStop:guardian) — Verifies MASTER_PLAN.md updated after merge
 - Test verification (Stop, agent) — Runs project tests before session ends
 
 ---
