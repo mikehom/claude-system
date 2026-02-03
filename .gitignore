@@ -24,6 +24,10 @@ telemetry/
 ide/
 tasks/
 chrome/
+tmp/
+
+# External tool data
+.gemini-clipboard/
 
 # Session history
 history.jsonl
