@@ -12,6 +12,7 @@ set -euo pipefail
 #   - Agent-type-specific guidance
 
 source "$(dirname "$0")/log.sh"
+source "$(dirname "$0")/context-lib.sh"
 
 HOOK_INPUT=$(read_input)
 AGENT_TYPE=$(echo "$HOOK_INPUT" | jq -r '.agent_type // empty' 2>/dev/null)
@@ -19,32 +20,31 @@ AGENT_TYPE=$(echo "$HOOK_INPUT" | jq -r '.agent_type // empty' 2>/dev/null)
 PROJECT_ROOT=$(detect_project_root)
 CONTEXT_PARTS=()
 
-# --- Git state ---
-if [[ -d "$PROJECT_ROOT/.git" ]]; then
-    BRANCH=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-    CONTEXT_PARTS+=("Git branch: $BRANCH")
+# --- Git state (via shared library) ---
+get_git_state "$PROJECT_ROOT"
 
-    DIRTY_COUNT=$(git -C "$PROJECT_ROOT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
-    if [[ "$DIRTY_COUNT" -gt 0 ]]; then
-        CONTEXT_PARTS+=("Uncommitted changes: $DIRTY_COUNT files")
+if [[ -n "$GIT_BRANCH" ]]; then
+    CONTEXT_PARTS+=("Git branch: $GIT_BRANCH")
+
+    if [[ "$GIT_DIRTY_COUNT" -gt 0 ]]; then
+        CONTEXT_PARTS+=("Uncommitted changes: $GIT_DIRTY_COUNT files")
     fi
 
-    # Active worktrees
-    WORKTREES=$(git -C "$PROJECT_ROOT" worktree list 2>/dev/null | grep -v "(bare)" | tail -n +2)
-    if [[ -n "$WORKTREES" ]]; then
-        WT_COUNT=$(echo "$WORKTREES" | wc -l | tr -d ' ')
-        CONTEXT_PARTS+=("Active worktrees: $WT_COUNT")
+    if [[ "$GIT_WT_COUNT" -gt 0 ]]; then
+        CONTEXT_PARTS+=("Active worktrees: $GIT_WT_COUNT")
         while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
             CONTEXT_PARTS+=("  $line")
-        done <<< "$WORKTREES"
+        done <<< "$GIT_WORKTREES"
     fi
 fi
 
-# --- MASTER_PLAN.md ---
-if [[ -f "$PROJECT_ROOT/MASTER_PLAN.md" ]]; then
-    PHASE=$(grep -iE '^\#.*phase|^\*\*Phase' "$PROJECT_ROOT/MASTER_PLAN.md" 2>/dev/null | tail -1 || echo "")
-    if [[ -n "$PHASE" ]]; then
-        CONTEXT_PARTS+=("MASTER_PLAN.md: active ($PHASE)")
+# --- MASTER_PLAN.md (via shared library) ---
+get_plan_status "$PROJECT_ROOT"
+
+if [[ "$PLAN_EXISTS" == "true" ]]; then
+    if [[ -n "$PLAN_PHASE" ]]; then
+        CONTEXT_PARTS+=("MASTER_PLAN.md: active ($PLAN_PHASE)")
     else
         CONTEXT_PARTS+=("MASTER_PLAN.md: exists")
     fi
@@ -59,15 +59,7 @@ case "$AGENT_TYPE" in
         ;;
     implementer)
         # Check if any worktrees exist for this project
-        WT_EXISTS=false
-        if [[ -d "$PROJECT_ROOT/.git" ]]; then
-            WT_COUNT=$(git -C "$PROJECT_ROOT" worktree list 2>/dev/null | grep -v "(bare)" | wc -l | tr -d ' ')
-            # More than 1 means worktrees exist (main checkout counts as 1)
-            if [[ "$WT_COUNT" -gt 1 ]]; then
-                WT_EXISTS=true
-            fi
-        fi
-        if [[ "$WT_EXISTS" == "false" ]]; then
+        if [[ "$GIT_WT_COUNT" -eq 0 ]]; then
             CONTEXT_PARTS+=("CRITICAL FIRST ACTION: No worktree detected. You MUST create a git worktree BEFORE writing any code. Run: git worktree add ../\<feature-name\> -b \<feature-name\> main — then cd into the worktree and work there. Do NOT write source code on main.")
         fi
         CONTEXT_PARTS+=("Role: Implementer — test-first development in isolated worktrees. Add @decision annotations to 50+ line files. NEVER work on main. The branch-guard hook will DENY any source file writes on main.")

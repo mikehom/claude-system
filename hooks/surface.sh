@@ -173,6 +173,39 @@ if [[ -f "$PROJECT_ROOT/MASTER_PLAN.md" ]]; then
     done
     CODE_DECS=$(echo "$CODE_DECS" | sort -u | grep -v '^$' || echo "")
 
+    # --- Decision status awareness ---
+    # Extract deprecated/superseded decisions from code (@status deprecated/superseded)
+    DEPRECATED_DECS=""
+    for dir in "${SCAN_DIRS[@]}"; do
+        if command -v rg &>/dev/null; then
+            dir_dep=$(rg -oN '@status\s+(deprecated|superseded)' "$dir" \
+                --glob '*.ts' --glob '*.tsx' --glob '*.js' --glob '*.jsx' \
+                --glob '*.py' --glob '*.rs' --glob '*.go' --glob '*.java' \
+                --glob '*.sh' --glob '*.rb' --glob '*.php' \
+                2>/dev/null || echo "")
+            # Also check inline format: Status: deprecated
+            dir_dep2=$(rg -oN 'Status:\s*(deprecated|superseded)' "$dir" \
+                --glob '*.ts' --glob '*.tsx' --glob '*.js' --glob '*.jsx' \
+                --glob '*.py' --glob '*.rs' --glob '*.go' --glob '*.java' \
+                --glob '*.sh' --glob '*.rb' --glob '*.php' \
+                2>/dev/null || echo "")
+        else
+            dir_dep=$(grep -roE '@status\s+(deprecated|superseded)' "$dir" \
+                --include='*.ts' --include='*.tsx' --include='*.js' --include='*.jsx' \
+                --include='*.py' --include='*.rs' --include='*.go' --include='*.java' \
+                --include='*.sh' --include='*.rb' --include='*.php' \
+                2>/dev/null || echo "")
+            dir_dep2=$(grep -roE 'Status:\s*(deprecated|superseded)' "$dir" \
+                --include='*.ts' --include='*.tsx' --include='*.js' --include='*.jsx' \
+                --include='*.py' --include='*.rs' --include='*.go' --include='*.java' \
+                --include='*.sh' --include='*.rb' --include='*.php' \
+                2>/dev/null || echo "")
+        fi
+    done
+
+    # Extract DEC-* IDs that are explicitly deprecated in the plan
+    PLAN_DEPRECATED=$(grep -B2 -iE 'status.*deprecated|status.*superseded' "$PROJECT_ROOT/MASTER_PLAN.md" 2>/dev/null | grep -oE 'DEC-[A-Z]+-[0-9]+' | sort -u || echo "")
+
     # Compare: decisions in code not in plan
     CODE_NOT_PLAN=""
     if [[ -n "$CODE_DECS" ]]; then
@@ -184,13 +217,19 @@ if [[ -f "$PROJECT_ROOT/MASTER_PLAN.md" ]]; then
         done <<< "$CODE_DECS"
     fi
 
-    # Compare: decisions in plan not in code
+    # Compare: decisions in plan not in code — distinguish unimplemented from deprecated
     PLAN_NOT_CODE=""
+    PLAN_DEPRECATED_SKIP=""
     if [[ -n "$PLAN_DECS" ]]; then
         while IFS= read -r dec; do
             [[ -z "$dec" ]] && continue
             if [[ -z "$CODE_DECS" ]] || ! echo "$CODE_DECS" | grep -qF "$dec"; then
-                PLAN_NOT_CODE+="$dec "
+                # Check if this decision is deprecated in the plan — don't flag it
+                if [[ -n "$PLAN_DEPRECATED" ]] && echo "$PLAN_DEPRECATED" | grep -qF "$dec"; then
+                    PLAN_DEPRECATED_SKIP+="$dec "
+                else
+                    PLAN_NOT_CODE+="$dec "
+                fi
             fi
         done <<< "$PLAN_DECS"
     fi
@@ -201,9 +240,13 @@ if [[ -f "$PROJECT_ROOT/MASTER_PLAN.md" ]]; then
 
     if [[ -n "$CODE_NOT_PLAN" ]]; then
         log_info "PLAN-SYNC" "Decisions in code not in plan (unplanned work): $CODE_NOT_PLAN"
+        log_info "PLAN-SYNC" "  Action: Guardian should add these to MASTER_PLAN.md at next phase boundary."
     fi
     if [[ -n "$PLAN_NOT_CODE" ]]; then
         log_info "PLAN-SYNC" "Plan decisions not in code (unimplemented): $PLAN_NOT_CODE"
+    fi
+    if [[ -n "$PLAN_DEPRECATED_SKIP" ]]; then
+        log_info "PLAN-SYNC" "Deprecated decisions skipped (correctly absent from code): $PLAN_DEPRECATED_SKIP"
     fi
     if [[ -z "$CODE_NOT_PLAN" && -z "$PLAN_NOT_CODE" ]]; then
         log_info "PLAN-SYNC" "Plan and code are in sync — all decision IDs match."
