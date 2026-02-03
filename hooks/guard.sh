@@ -92,8 +92,14 @@ extract_git_target_dir() {
             return
         fi
     fi
-    # Fallback: hook's CWD
-    echo "."
+    # Fallback: try hook input JSON cwd field, then CLAUDE_PROJECT_DIR, then git root
+    local input_cwd
+    input_cwd=$(get_field '.cwd' 2>/dev/null)
+    if [[ -n "$input_cwd" && -d "$input_cwd" ]]; then
+        echo "$input_cwd"
+        return
+    fi
+    detect_project_root
 }
 
 # --- Check 2: Main is sacred (no commits on main/master) ---
