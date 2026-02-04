@@ -25,6 +25,8 @@ ide/
 tasks/
 chrome/
 tmp/
+fudge-traces/
+image-cache/
 
 # External tool data
 .gemini-clipboard/
