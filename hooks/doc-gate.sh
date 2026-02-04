@@ -21,6 +21,33 @@ FILE_PATH=$(get_field '.tool_input.file_path')
 # Exit silently if no file path
 [[ -z "$FILE_PATH" ]] && exit 0
 
+# --- Check: New markdown files in project root ---
+# Warn against creating standalone tracking/planning .md files (Sacred Practice #9)
+if [[ "$TOOL_NAME" == "Write" && "$FILE_PATH" =~ \.md$ ]]; then
+    FILE_DIR=$(dirname "$FILE_PATH")
+    PROJECT_ROOT=$(detect_project_root)
+    if [[ "$FILE_DIR" == "$PROJECT_ROOT" ]]; then
+        FILE_NAME=$(basename "$FILE_PATH")
+        case "$FILE_NAME" in
+            CLAUDE.md|README.md|MASTER_PLAN.md|AGENTS.md|CHANGELOG.md|LICENSE.md|CONTRIBUTING.md)
+                ;; # Operational docs — allowed
+            *)
+                if [[ ! -f "$FILE_PATH" ]]; then
+                    cat <<EOF
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "additionalContext": "Creating new markdown file '$FILE_NAME' in project root. Sacred Practice #9: Track deferred work in GitHub issues, not standalone files. Consider: gh issue create --title '...' instead."
+  }
+}
+EOF
+                    exit 0
+                fi
+                ;;
+        esac
+    fi
+fi
+
 # Skip non-source files (uses shared SOURCE_EXTENSIONS from context-lib.sh)
 is_source_file "$FILE_PATH" || exit 0
 

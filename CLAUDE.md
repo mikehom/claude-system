@@ -41,6 +41,7 @@ Agents are interactive — they handle the full approval cycle (present → appr
 6. **No Implementation Without Plan** — MASTER_PLAN.md before first line of code. Always.
 7. **Code is Truth** — Documentation derives from code. Annotate at the point of implementation. When docs and code conflict, code is right.
 8. **Approval Gates** — Commits, merges, force pushes require explicit user approval.
+9. **Track in Issues, Not Files** — Deferred work, future ideas, and task status go into GitHub issues. Only operational docs (CLAUDE.md, README.md, MASTER_PLAN.md) belong in repo root. MASTER_PLAN.md is a planning artifact that produces issues — it is not a living tracker.
 
 ## Code is Truth
 
