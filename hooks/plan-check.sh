@@ -81,8 +81,8 @@ EOF
 fi
 
 # --- Plan staleness check (two-tier: advisory at WARN, deny at DENY) ---
-STALENESS_WARN="${PLAN_STALENESS_WARN:-20}"
-STALENESS_DENY="${PLAN_STALENESS_DENY:-40}"
+STALENESS_WARN="${PLAN_STALENESS_WARN:-40}"
+STALENESS_DENY="${PLAN_STALENESS_DENY:-100}"
 if [[ -d "$PROJECT_ROOT/.git" ]]; then
     PLAN_MOD=$(stat -f '%m' "$PROJECT_ROOT/MASTER_PLAN.md" 2>/dev/null || stat -c '%Y' "$PROJECT_ROOT/MASTER_PLAN.md" 2>/dev/null || echo "0")
     if [[ "$PLAN_MOD" -gt 0 ]]; then

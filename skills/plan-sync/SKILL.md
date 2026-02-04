@@ -129,6 +129,16 @@ If approved, make these updates:
 | Decision ID in code doesn't match DEC-COMPONENT-NNN format | Flag as validation warning |
 | Multiple files contain same decision ID | Flag as duplicate — decisions must be unique |
 
+## Role in Plan Lifecycle
+
+MASTER_PLAN.md updates only at **phase boundaries** — when phases transition status (planned → in-progress → completed) or when significant architectural drift is discovered. Between phase boundaries, `plan-sync` is the primary reconciliation tool:
+
+- **Drift detection**: Identifies when code decisions diverge from the plan without triggering a plan update
+- **Phase transition readiness**: Determines when all phase issues are resolved and a phase-completing merge is appropriate
+- **Audit trail**: Produces reconciliation reports that inform whether the Guardian should update the plan on the next merge
+
+Use `/plan-sync` proactively during a phase to understand the gap between plan and code. The output guides whether the next merge should be treated as a phase-completing merge (triggering a plan update) or a regular merge (closing issues only).
+
 ## Relationship to Other Components
 
 - **surface.sh** (Stop hook): Runs a lightweight version of this reconciliation automatically at session end. This skill provides the full interactive version.

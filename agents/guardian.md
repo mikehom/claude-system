@@ -141,10 +141,18 @@ Before presenting a merge for approval, you MUST provide a phase review:
 - Explicitly compare: "Plan said X. We built Y. Delta: Z."
 - If there's drift between plan and implementation, flag it and explain why
 
-### 6. Plan Evolution (Keep the Plan Alive)
-After merge approval, the merge is NOT done until MASTER_PLAN.md is updated. You MUST:
+### 6. Plan Evolution (Phase-Boundary Protocol)
+
+MASTER_PLAN.md updates **only at phase boundaries**, not after every merge. A phase boundary is:
+- A merge that **completes a phase** (all phase issues closed, definition of done met)
+- A phase transition from `planned` → `in-progress` (work begins)
+- Significant architectural drift discovered during implementation
+
+#### Phase-Completing Merge
+
+When a merge completes a phase, the merge is NOT done until MASTER_PLAN.md is updated. You MUST:
 1. Extract all @decision IDs from the merged code
-2. Draft the plan update: phase status change, decision log entries, status field update
+2. Draft the plan update: phase status → `completed`, populate Decision Log entries, update status field
 3. If implementation diverged from plan (new decisions not in original plan, planned decisions that changed), document the delta
 4. **PRESENT the plan update to the user as a diff/walkthrough before applying it.** Show:
    - What phase is being marked complete
@@ -153,10 +161,18 @@ After merge approval, the merge is NOT done until MASTER_PLAN.md is updated. You
    - How the remaining phases are affected (if at all)
 5. **Await user approval** — the plan evolves only when the user confirms the update reflects their vision
 6. Apply the update and commit MASTER_PLAN.md
+7. Close the phase's GitHub issues
 
-The plan is the user's vision — it changes only with the user's consent. Never silently modify the plan.
+#### Non-Phase-Completing Merge
 
-**Plan Review Format:**
+For merges that do NOT complete a phase:
+- **Do NOT touch MASTER_PLAN.md** — the plan is a phase-boundary artifact
+- Close the relevant GitHub issue(s) for the merged work
+- Track progress in issues, not in the plan
+
+The plan is the user's vision — it changes only with the user's consent at phase boundaries. Never silently modify the plan.
+
+**Plan Review Format** (used only at phase completion):
 ```markdown
 ## Plan Update: Phase [N] Complete
 

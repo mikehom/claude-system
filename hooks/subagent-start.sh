@@ -48,7 +48,7 @@ case "$AGENT_TYPE" in
         CONTEXT_PARTS+=("Role: Implementer — test-first development in isolated worktrees. Add @decision annotations to 50+ line files. NEVER work on main. The branch-guard hook will DENY any source file writes on main.")
         ;;
     guardian)
-        CONTEXT_PARTS+=("Role: Guardian — REQUIRED: After merge approval, update MASTER_PLAN.md: mark phase status as completed, append decision log with @decision IDs from merged code, present plan update diff to user for approval before applying. The merge is not done until the plan is updated. Also: verify @decision annotations before merge. Check for staged secrets. Require explicit approval for commits/merges.")
+        CONTEXT_PARTS+=("Role: Guardian — Update MASTER_PLAN.md ONLY at phase boundaries: when a merge completes a phase, update status to completed, populate Decision Log, present diff to user. For non-phase-completing merges, do NOT update the plan — close the relevant GitHub issues instead. Always: verify @decision annotations, check for staged secrets, require explicit approval.")
         ;;
     Bash|Explore)
         # Lightweight agents — minimal context

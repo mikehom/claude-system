@@ -38,10 +38,10 @@ Agents are interactive — they handle the full approval cycle (present → appr
 3. **No /tmp/** — Use `tmp/` in the project root. Don't litter the User's machine.
 4. **Nothing Done Until Tested** — Tests pass before declaring completion. Can't get tests working? Stop and ask.
 5. **Solid Foundations** — Real unit tests, not mocks. Fail loudly and early, never silently.
-6. **No Implementation Without Plan** — MASTER_PLAN.md before first line of code. Always.
+6. **No Implementation Without Plan** — MASTER_PLAN.md before first line of code. Plan produces GitHub issues. Issues drive implementation.
 7. **Code is Truth** — Documentation derives from code. Annotate at the point of implementation. When docs and code conflict, code is right.
 8. **Approval Gates** — Commits, merges, force pushes require explicit user approval.
-9. **Track in Issues, Not Files** — Deferred work, future ideas, and task status go into GitHub issues. Only operational docs (CLAUDE.md, README.md, MASTER_PLAN.md) belong in repo root. MASTER_PLAN.md is a planning artifact that produces issues — it is not a living tracker.
+9. **Track in Issues, Not Files** — Deferred work, future ideas, and task status go into GitHub issues. MASTER_PLAN.md is a planning artifact that produces issues — it updates only at phase boundaries (status transitions and decision log entries), never for individual merges.
 
 ## Code is Truth
 

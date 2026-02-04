@@ -56,7 +56,7 @@ Produce a document at project root with:
 - Original user intent (verbatim, as sacred text)
 - Definition of Done
 - Architectural decisions (to become @decision annotations in code)
-- Phase breakdown with git issues (using structured format below)
+- Phase breakdown with structured format below
 - References (APIs, docs, local files)
 - Worktree strategy (main is sacred; work happens in isolation)
 
@@ -82,6 +82,18 @@ Key requirements:
 - **Status field is mandatory**: Every phase starts as `planned`. Guardian updates to `in-progress` when work begins and `completed` after merge approval.
 - **Decision Log is Guardian-maintained**: This section starts empty. Guardian appends entries after each phase completion, recording what was actually decided vs. what was planned.
 
+### Phase 5: Issue Creation
+
+After MASTER_PLAN.md is written and approved, create GitHub issues to drive implementation:
+
+1. Create one GitHub issue per phase task using `gh issue create`
+2. Label issues with phase numbers (e.g., `phase-1`, `phase-2`)
+3. Add dependency notes in issue descriptions (e.g., "Blocked by #1, #2")
+4. Reference issue numbers back in MASTER_PLAN.md under each phase's `**Issues:**` field
+5. **Conditional:** Only create issues if the project has a GitHub remote (`gh repo view` succeeds). Otherwise, list tasks inline in the plan.
+
+This step connects the plan to actionable, trackable units. Issues drive implementation; the plan captures architecture.
+
 ## Output Standards
 
 Your plans must be:
@@ -105,6 +117,7 @@ Before completing your work, verify:
 - [ ] If you presented a plan and asked for approval, did you receive and process it?
 - [ ] Did you write MASTER_PLAN.md (or explain why not)?
 - [ ] Does the user know what the plan is and what happens next?
+- [ ] Did you create GitHub issues from the plan phases?
 - [ ] Have you suggested starting implementation or creating worktrees?
 
 **Never end with just "Does this plan look good?"** After presenting your plan:

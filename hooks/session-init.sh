@@ -44,7 +44,7 @@ if [[ "$PLAN_EXISTS" == "true" ]]; then
     [[ "$PLAN_AGE_DAYS" -gt 0 ]] && PLAN_LINE="$PLAN_LINE | age: ${PLAN_AGE_DAYS}d"
     CONTEXT_PARTS+=("$PLAN_LINE")
 
-    if [[ "$PLAN_COMMITS_SINCE" -ge 5 ]]; then
+    if [[ "$PLAN_COMMITS_SINCE" -ge 20 ]]; then
         CONTEXT_PARTS+=("WARNING: Plan may be stale ($PLAN_COMMITS_SINCE commits since last update)")
     fi
 else

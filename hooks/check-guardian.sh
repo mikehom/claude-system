@@ -20,21 +20,35 @@ PLAN="$PROJECT_ROOT/MASTER_PLAN.md"
 
 ISSUES=()
 
-# Check 1: MASTER_PLAN.md was recently modified (within 5 minutes)
-if [[ -f "$PLAN" ]]; then
-    # Get modification time in epoch seconds
-    if [[ "$(uname)" == "Darwin" ]]; then
-        MOD_TIME=$(stat -f %m "$PLAN" 2>/dev/null || echo "0")
-    else
-        MOD_TIME=$(stat -c %Y "$PLAN" 2>/dev/null || echo "0")
-    fi
-    NOW=$(date +%s)
-    AGE=$(( NOW - MOD_TIME ))
+# Extract agent's response text first (needed for phase-boundary detection)
+RESPONSE_TEXT=$(echo "$AGENT_RESPONSE" | jq -r '.response // .result // .output // empty' 2>/dev/null || echo "")
 
-    if [[ "$AGE" -gt 300 ]]; then
-        ISSUES+=("MASTER_PLAN.md not updated recently (${AGE}s ago) — expected update after merge")
+# Detect if this was a phase-completing merge by looking for phase-completion language
+IS_PHASE_COMPLETING=""
+if [[ -n "$RESPONSE_TEXT" ]]; then
+    IS_PHASE_COMPLETING=$(echo "$RESPONSE_TEXT" | grep -iE 'phase.*(complete|done|finished)|marking phase.*completed|status.*completed|phase completion' || echo "")
+fi
+
+# Check 1: MASTER_PLAN.md freshness — only for phase-completing merges
+if [[ -n "$IS_PHASE_COMPLETING" ]]; then
+    if [[ -f "$PLAN" ]]; then
+        # Get modification time in epoch seconds
+        if [[ "$(uname)" == "Darwin" ]]; then
+            MOD_TIME=$(stat -f %m "$PLAN" 2>/dev/null || echo "0")
+        else
+            MOD_TIME=$(stat -c %Y "$PLAN" 2>/dev/null || echo "0")
+        fi
+        NOW=$(date +%s)
+        AGE=$(( NOW - MOD_TIME ))
+
+        if [[ "$AGE" -gt 300 ]]; then
+            ISSUES+=("MASTER_PLAN.md not updated recently (${AGE}s ago) — expected update after phase-completing merge")
+        fi
+    else
+        ISSUES+=("MASTER_PLAN.md not found — should exist before guardian merges")
     fi
-else
+elif [[ ! -f "$PLAN" ]]; then
+    # Even for non-phase merges, flag if plan doesn't exist at all
     ISSUES+=("MASTER_PLAN.md not found — should exist before guardian merges")
 fi
 
@@ -49,8 +63,6 @@ CURRENT_BRANCH=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null 
 LAST_COMMIT=$(git -C "$PROJECT_ROOT" log --oneline -1 2>/dev/null || echo "none")
 
 # Check 4: Approval-loop detection — agent should not end with unanswered question
-# Extract agent's response text from the hook input
-RESPONSE_TEXT=$(echo "$AGENT_RESPONSE" | jq -r '.response // .result // .output // empty' 2>/dev/null || echo "")
 if [[ -n "$RESPONSE_TEXT" ]]; then
     # Check if response ends with an approval question
     HAS_APPROVAL_QUESTION=$(echo "$RESPONSE_TEXT" | grep -iE 'do you (approve|confirm|want me to proceed)|shall I (proceed|continue|merge)|ready to (merge|commit|proceed)\?' || echo "")
