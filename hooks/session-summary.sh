@@ -10,6 +10,7 @@ set -euo pipefail
 # Every metric here is a wc/grep that completes instantly. Status: accepted.
 
 source "$(dirname "$0")/log.sh"
+source "$(dirname "$0")/context-lib.sh"
 
 HOOK_INPUT=$(read_input)
 
@@ -63,14 +64,69 @@ if [[ "$DECISIONS_ADDED" -gt 0 ]]; then
     SUMMARY+=". $DECISIONS_ADDED file(s) with @decision annotations."
 fi
 
-# Git state
-BRANCH=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-DIRTY=$(git -C "$PROJECT_ROOT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
-if [[ "$DIRTY" -gt 0 ]]; then
-    SUMMARY+="\nGit: branch=$BRANCH, $DIRTY uncommitted change(s)."
-else
-    SUMMARY+="\nGit: branch=$BRANCH, clean."
+# Git + plan + test state via context-lib
+get_git_state "$PROJECT_ROOT"
+get_plan_status "$PROJECT_ROOT"
+
+# Test status from test-runner.sh (format: "result|fail_count|timestamp")
+# Staleness guard: treat .test-status older than 30 minutes as unknown.
+# Without this, a days-old "pass" could mislead into suggesting "commit"
+# when tests haven't been run this session.
+TEST_RESULT="unknown"
+TEST_FAILS=0
+TEST_STATUS_FILE="${PROJECT_ROOT}/.claude/.test-status"
+STALENESS_THRESHOLD=1800  # 30 minutes in seconds
+if [[ -f "$TEST_STATUS_FILE" ]]; then
+    FILE_MOD=$(stat -f '%m' "$TEST_STATUS_FILE" 2>/dev/null || stat -c '%Y' "$TEST_STATUS_FILE" 2>/dev/null || echo "0")
+    NOW=$(date +%s)
+    FILE_AGE=$(( NOW - FILE_MOD ))
+    if [[ "$FILE_AGE" -le "$STALENESS_THRESHOLD" ]]; then
+        TEST_RESULT=$(cut -d'|' -f1 "$TEST_STATUS_FILE")
+        TEST_FAILS=$(cut -d'|' -f2 "$TEST_STATUS_FILE")
+    fi
 fi
+
+# Git line: branch + dirty/clean + test status
+GIT_LINE="Git: branch=$GIT_BRANCH"
+if [[ "$GIT_DIRTY_COUNT" -gt 0 ]]; then
+    GIT_LINE+=", $GIT_DIRTY_COUNT uncommitted"
+else
+    GIT_LINE+=", clean"
+fi
+case "$TEST_RESULT" in
+    pass)    GIT_LINE+=". Tests: passing." ;;
+    fail)    GIT_LINE+=". Tests: FAILING ($TEST_FAILS failure(s))." ;;
+    *)       GIT_LINE+=". Tests: not run this session." ;;
+esac
+SUMMARY+="\n$GIT_LINE"
+
+# Workflow phase detection → next-action guidance
+IS_MAIN=false
+[[ "$GIT_BRANCH" == "main" || "$GIT_BRANCH" == "master" ]] && IS_MAIN=true
+
+NEXT_ACTION=""
+if $IS_MAIN; then
+    if [[ "$PLAN_EXISTS" != "true" ]]; then
+        NEXT_ACTION="Create MASTER_PLAN.md before implementation."
+    elif [[ "$GIT_WT_COUNT" -eq 0 ]]; then
+        NEXT_ACTION="Use Guardian to create worktrees for implementation."
+    else
+        NEXT_ACTION="Continue implementation in active worktrees."
+    fi
+else
+    # Feature branch
+    if [[ "$TEST_RESULT" == "fail" ]]; then
+        NEXT_ACTION="Fix failing tests ($TEST_FAILS failure(s)) before proceeding."
+    elif [[ "$TEST_RESULT" != "pass" ]]; then
+        NEXT_ACTION="Run tests to verify implementation before committing."
+    elif [[ "$GIT_DIRTY_COUNT" -gt 0 ]]; then
+        NEXT_ACTION="Review changes with user, then commit in this worktree when approved."
+    else
+        NEXT_ACTION="User should test the feature. When satisfied, use Guardian to merge to main."
+    fi
+fi
+
+SUMMARY+="\nNext: $NEXT_ACTION"
 
 # Output as systemMessage
 ESCAPED=$(echo -e "$SUMMARY" | jq -Rs .)
