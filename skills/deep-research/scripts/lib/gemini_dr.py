@@ -102,7 +102,7 @@ def _extract_report(response: Dict[str, Any]) -> Tuple[str, List[Any]]:
         if isinstance(result, dict):
             report = result.get("text", result.get("content", ""))
 
-    # Extract citations/sources if present
+    # Extract citations from structured sources if present
     sources = response.get("sources", response.get("groundingMetadata", {}).get("webSearchQueries", []))
     if isinstance(sources, list):
         for src in sources:
@@ -113,6 +113,17 @@ def _extract_report(response: Dict[str, Any]) -> Tuple[str, List[Any]]:
                     "url": src.get("url", src.get("uri", "")),
                     "title": src.get("title", ""),
                 })
+
+    # Fallback: extract inline URLs from report text (Gemini embeds grounding
+    # redirect URLs directly in the markdown)
+    if not citations and report:
+        import re
+        urls = re.findall(r'https?://[^\s\)>\]]+', report)
+        seen = set()
+        for url in urls:
+            if url not in seen:
+                seen.add(url)
+                citations.append({"url": url})
 
     return report, citations
 
