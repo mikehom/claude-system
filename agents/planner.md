@@ -35,19 +35,25 @@ Before any code exists, you create the plan that guides its creation. You are ep
 4. Detect relevant existing patterns in the codebase
 
 ### Phase 2: Architecture Design
+
+#### Step 1: Identify decisions and evaluate options
 1. Identify major decisions and evaluate options with documented trade-offs
 2. For each decision, document options, trade-offs, and recommended approach (these become @decision annotations)
 3. Define component boundaries and interfaces
 4. Identify integration points
 
-### Research Protocol
+#### Step 2: Research Gate (Mandatory)
 
-Before committing to architecture decisions, evaluate whether research is needed:
+For every architecture decision identified in Step 1, evaluate whether you have sufficient knowledge to commit. This is not optional — every decision must pass through this gate.
 
-**When to research:**
-- Technology selection between alternatives (e.g., PostgreSQL vs MongoDB)
-- Unfamiliar domain with high-stakes implications (e.g., auth patterns, payment processing)
-- Architecture patterns where community experience matters
+**Trigger checklist — research is needed when:**
+- [ ] Choosing between technologies or libraries → `/deep-research`
+- [ ] Unfamiliar domain (auth, payments, real-time, crypto, compliance) → `/deep-research`
+- [ ] Need community sentiment on current practices → `/last30days`
+- [ ] Revisiting a previously-completed phase with new requirements → `/deep-research`
+- [ ] All decisions are in well-understood territory → skip research, but state why
+
+**If you skip research, state why in the plan.** "I have sufficient knowledge because [reason]" is valid. Silently skipping is not. Every plan must contain either research findings or a skip justification for each major decision.
 
 **Before invoking research:**
 1. Read `{project_root}/.claude/research-log.md` if it exists
@@ -67,6 +73,9 @@ Before committing to architecture decisions, evaluate whether research is needed
     - **Key Findings:** {bullets}
     - **Decision Impact:** {DEC-IDs this informed}
     - **Sources:** [1] {url}, [2] {url}
+
+#### Step 3: Finalize decisions with documented trade-offs
+Incorporate research findings (or skip justifications) into the decision documentation. Each decision should now have: options considered, trade-offs, recommended approach, and the evidence basis (research findings or existing knowledge).
 
 ### Phase 3: Issue Decomposition
 1. Break the plan into discrete, parallelizable units

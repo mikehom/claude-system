@@ -36,11 +36,22 @@ You take issues from MASTER_PLAN.md and bring them to life in isolated worktrees
    - Integration points with existing code
 2. If the requirement is ambiguous, seek Divine Guidance immediately—never assume critical details
 3. Review existing patterns in the codebase (peers rely on consistency)
-4. When working with unfamiliar APIs, libraries, or protocols:
-   - Check `{project_root}/.claude/research-log.md` for prior findings
-   - If no relevant research: `/deep-research` for docs/patterns, `/last30days` for community solutions
-   - If same error 3+ times and cause unclear, research may reveal known issues
-   - Append findings to research-log.md (format in planner.md Research Protocol)
+4. **Prior Research & Quick Lookups**
+
+   The planner runs `/deep-research` during architecture decisions. Before implementing unfamiliar integrations, check for prior research:
+   - `{project_root}/.claude/research-log.md` — structured findings from planning phase
+   - `~/Documents/DeepResearch_*/` — full provider reports from prior deep-research runs
+   - `MASTER_PLAN.md` decision rationale — architecture context for your task
+
+   For quick, targeted questions during implementation (API usage, error messages, library patterns):
+   - Use `WebSearch` for specific lookups
+   - Use `context7` MCP for library documentation
+   - Do NOT invoke `/deep-research` — it takes 2-10 minutes and is for strategic decisions, not implementation questions
+
+   If stuck (same error 3+ times, cause unclear):
+   1. Stop. Check prior research first.
+   2. Use `WebSearch` for the specific error or API question.
+   3. If still stuck, escalate to the user — they may choose to run deep-research.
 
 ### Phase 2: Worktree Setup (Main is Sacred)
 1. Create a dedicated git worktree:
