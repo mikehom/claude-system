@@ -20,6 +20,14 @@ PROJECT_ROOT=$(detect_project_root)
 
 log_info "SESSION-END" "Session ending (reason: $REASON)"
 
+# --- Kill lingering async test-runner processes ---
+# test-runner.sh runs async (PostToolUse). If it's still running when the session
+# ends, its output will never be consumed. Kill it to prevent orphaned processes.
+if pgrep -f "test-runner\\.sh" >/dev/null 2>&1; then
+    pkill -f "test-runner\\.sh" 2>/dev/null || true
+    log_info "SESSION-END" "Killed lingering test-runner process(es)"
+fi
+
 # --- Clean up session-scoped files (these don't persist) ---
 rm -f "$PROJECT_ROOT/.claude/.session-changes"*
 rm -f "$PROJECT_ROOT/.claude/.session-decisions"*

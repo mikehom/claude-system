@@ -270,7 +270,8 @@ if [[ -n "${PLAN_NOT_CODE:-}" ]]; then
     append_audit "$PROJECT_ROOT" "plan_drift" "unimplemented decisions: $PLAN_NOT_CODE"
 fi
 
-# --- Emit hookSpecificOutput so findings reach the model on next turn ---
+# --- Emit systemMessage so findings reach the model on next turn ---
+# Stop hooks use systemMessage (not hookSpecificOutput, which is PreToolUse/PostToolUse only)
 SUMMARY_PARTS=()
 SUMMARY_PARTS+=("$TOTAL_CHANGED source files changed, $MISSING_COUNT need @decision")
 if [[ -n "${CODE_NOT_PLAN:-}" || -n "${PLAN_NOT_CODE:-}" ]]; then
@@ -290,10 +291,7 @@ SUMMARY=$(printf '%s\n' "${SUMMARY_PARTS[@]}")
 ESCAPED_SUMMARY=$(echo "$SUMMARY" | jq -Rs .)
 cat <<HOOK_EOF
 {
-  "hookSpecificOutput": {
-    "hookEventName": "Stop",
-    "additionalContext": $ESCAPED_SUMMARY
-  }
+  "systemMessage": $ESCAPED_SUMMARY
 }
 HOOK_EOF
 

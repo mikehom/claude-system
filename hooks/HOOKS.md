@@ -57,6 +57,27 @@ SubagentStart/SubagentStop hooks receive `{"subagent_type": "planner|implementer
 
 PostToolUse hooks use `additionalContext` for feedback. Exit code 2 in lint.sh triggers a feedback loop (model retries with linter output).
 
+### Stop Hook Responses
+
+Stop hooks have a **different schema** from PreToolUse/PostToolUse. They do NOT accept `hookSpecificOutput`. Valid fields:
+
+**System message** — inject context into the next turn:
+```json
+{
+  "systemMessage": "Summary text shown as system-reminder"
+}
+```
+
+**Block** — prevent the response from completing (rare):
+```json
+{
+  "decision": "block",
+  "reason": "Explanation of why the response was blocked"
+}
+```
+
+Stop hooks receive `{"stop_hook_active": true/false, "response": "..."}` on stdin. Check `stop_hook_active` to prevent re-firing loops (if a Stop hook's `systemMessage` triggers another model response, the next Stop invocation will have `stop_hook_active: true`).
+
 ### Rewrite Pattern
 
 Three checks in guard.sh use transparent rewrites (the model's command is silently replaced):

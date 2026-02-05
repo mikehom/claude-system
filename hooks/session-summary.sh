@@ -72,10 +72,28 @@ get_plan_status "$PROJECT_ROOT"
 # Staleness guard: treat .test-status older than 30 minutes as unknown.
 # Without this, a days-old "pass" could mislead into suggesting "commit"
 # when tests haven't been run this session.
+#
+# Wait loop: test-runner.sh runs async (PostToolUse). If a Write/Edit triggered
+# it just before the model finished, .test-status may not exist yet. Wait briefly
+# if test-runner is still running so we can capture the result rather than report
+# "not run" while tests are actually in-flight.
 TEST_RESULT="unknown"
 TEST_FAILS=0
 TEST_STATUS_FILE="${PROJECT_ROOT}/.claude/.test-status"
 STALENESS_THRESHOLD=1800  # 30 minutes in seconds
+
+# Brief wait for async test-runner if it's still running
+if [[ ! -f "$TEST_STATUS_FILE" ]] && pgrep -f "test-runner\\.sh" >/dev/null 2>&1; then
+    for _i in 1 2 3; do
+        sleep 1
+        [[ -f "$TEST_STATUS_FILE" ]] && break
+    done
+    # If still no file but process finished, give one more beat
+    if [[ ! -f "$TEST_STATUS_FILE" ]] && ! pgrep -f "test-runner\\.sh" >/dev/null 2>&1; then
+        sleep 0.5
+    fi
+fi
+
 if [[ -f "$TEST_STATUS_FILE" ]]; then
     FILE_MOD=$(stat -f '%m' "$TEST_STATUS_FILE" 2>/dev/null || stat -c '%Y' "$TEST_STATUS_FILE" 2>/dev/null || echo "0")
     NOW=$(date +%s)
