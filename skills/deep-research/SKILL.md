@@ -48,29 +48,31 @@ echo "Add at least one API key for deep research."
 
 **Step 1: Run the deep research script**
 
-**CRITICAL: This script takes 2-10 minutes.** Run it in the background so you can tell the user what's happening while it works.
+**CRITICAL: This script takes 2-10 minutes.** It runs blocking — do NOT use `run_in_background`. This skill runs in a forked context, so blocking is correct.
+
+Create the output directory and run the script:
 
 ```bash
-# Run in background — use run_in_background: true on the Bash tool call
-python3 ~/.claude/skills/deep-research/scripts/deep_research.py "$ARGUMENTS" --emit=json 2>&1
+# timeout must exceed script's internal 600s timeout
+mkdir -p ~/Documents/DeepResearch_[SafeTopic]_[YYYY-MM-DD] && \
+python3 ~/.claude/skills/deep-research/scripts/deep_research.py "$ARGUMENTS" \
+  --output-dir ~/Documents/DeepResearch_[SafeTopic]_[YYYY-MM-DD] 2>&1
 ```
 
-After launching, immediately tell the user:
-> "Deep research launched across [N] providers. This typically takes 2-10 minutes. I'll synthesize the results when all providers report back."
-
-Then use **TaskOutput** (with `block: true, timeout: 600000`) to wait for the result. When it returns, proceed to Step 2.
+Set `timeout: 660000` on the Bash tool call (script's 600s timeout + 60s buffer).
 
 The script will:
 - Detect which API keys are configured
 - Launch available providers in parallel
 - Poll async providers (OpenAI, Gemini) until complete
-- Output structured JSON to stdout with progress to stderr
+- Write `raw_results.json` to the output directory
+- Print progress to stderr
 
 **IMPORTANT**: Deep research models take 2-10 minutes per provider. The script handles all polling internally. Do NOT interrupt it.
 
-**Step 2: Parse the JSON output**
+**Step 2: Read and parse the results**
 
-The output is a JSON object:
+Use the **Read** tool to read `raw_results.json` from the output directory. The file is a JSON object:
 ```json
 {
   "topic": "the research topic",
@@ -169,18 +171,13 @@ If a provider (like Gemini) returns no structured citations, note that its claim
 
 ## Save All Outputs
 
-Save everything to a dated directory:
+The output directory was already created in Step 1. The script already wrote `raw_results.json` there.
 
-```bash
-mkdir -p ~/Documents/DeepResearch_[SafeTopic]_[YYYY-MM-DD]
-```
-
-Write these files:
+Write these additional files to the same directory:
 
 | File | Contents |
 |------|----------|
 | `report.md` | Your comparative synthesis (the report above) |
-| `raw_results.json` | The full JSON output from the script (copy verbatim) |
 | `openai.md` | OpenAI's full report text (from `results[].report` where provider=openai) |
 | `perplexity.md` | Perplexity's full report text |
 | `gemini.md` | Gemini's full report text |

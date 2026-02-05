@@ -143,6 +143,10 @@ def main():
         "--debug", action="store_true",
         help="Enable verbose debug logging",
     )
+    parser.add_argument(
+        "--output-dir", type=str, default=None,
+        help="Write raw_results.json to this directory instead of stdout",
+    )
 
     args = parser.parse_args()
 
@@ -215,7 +219,13 @@ def main():
     results.sort(key=lambda r: order.get(r.provider, 99))
 
     # Output
-    if args.emit == "json":
+    if args.output_dir:
+        out = Path(args.output_dir)
+        out.mkdir(parents=True, exist_ok=True)
+        with open(out / "raw_results.json", "w") as f:
+            f.write(render_json(results, args.topic))
+        print(str(out / "raw_results.json"))
+    elif args.emit == "json":
         print(render_json(results, args.topic))
     else:
         print(render_compact(results, args.topic))
