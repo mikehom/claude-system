@@ -97,9 +97,9 @@ Nine practices define how this system operates. Each one has mechanical enforcem
 | 1 | **Always Use Git** | `session-init.sh` injects git state; `guard.sh` blocks destructive operations |
 | 2 | **Main is Sacred** | `branch-guard.sh` blocks writes on main; `guard.sh` blocks commits on main |
 | 3 | **No /tmp/** | `guard.sh` rewrites `/tmp/` paths to project `tmp/` directory |
-| 4 | **Nothing Done Until Tested** | `test-gate.sh` blocks writes when tests fail; `guard.sh` requires test evidence for commits |
+| 4 | **Nothing Done Until Tested** | `test-gate.sh` warns then blocks source writes when tests fail (escalating); `guard.sh` requires test evidence for commits |
 | 5 | **Solid Foundations** | `mock-gate.sh` detects and escalates internal mocking (warn → deny) |
-| 6 | **No Implementation Without Plan** | `plan-check.sh` warns on writes without MASTER_PLAN.md |
+| 6 | **No Implementation Without Plan** | `plan-check.sh` denies source writes without MASTER_PLAN.md |
 | 7 | **Code is Truth** | `doc-gate.sh` enforces headers and @decision on 50+ line files |
 | 8 | **Approval Gates** | `guard.sh` blocks force push; Guardian agent requires approval for all permanent ops |
 | 9 | **Track in Issues** | `plan-validate.sh` checks alignment; `check-planner.sh` validates issue creation |
@@ -137,6 +137,8 @@ Subagent Start ─► subagent-start.sh (agent-specific context)
 Subagent Stop ──► check-planner.sh | check-implementer.sh |
        │          check-guardian.sh
        │
+       │  (async) ─► notify.sh (desktop alert on permission/idle)
+       │
        ▼
 Stop ───────────► surface.sh (decision audit) → session-summary.sh →
        │          forward-motion.sh
@@ -155,11 +157,11 @@ Hooks within the same event run sequentially in array order. A deny from any Pre
 | Hook | Matcher | What It Does |
 |------|---------|--------------|
 | **guard.sh** | Bash | Blocks `/tmp` writes, commits on main, force push, destructive git; rewrites to safe alternatives |
-| **test-gate.sh** | Write\|Edit | Blocks source file writes when tests are failing |
+| **test-gate.sh** | Write\|Edit | Escalating gate: warns on first source write with failing tests, blocks on repeat |
 | **mock-gate.sh** | Write\|Edit | Detects internal mocking patterns; warns first, blocks on repeat |
 | **branch-guard.sh** | Write\|Edit | Blocks source file writes on main/master branch |
 | **doc-gate.sh** | Write\|Edit | Enforces file headers and @decision annotations on 50+ line files |
-| **plan-check.sh** | Write\|Edit | Warns if writing source code without MASTER_PLAN.md |
+| **plan-check.sh** | Write\|Edit | Denies source writes without MASTER_PLAN.md; bypasses small files and edits |
 
 ### PostToolUse — Feedback After Execution
 
@@ -167,8 +169,8 @@ Hooks within the same event run sequentially in array order. A deny from any Pre
 |------|---------|--------------|
 | **lint.sh** | Write\|Edit | Auto-detects project linter, runs on modified files (exit 2 = retry loop) |
 | **track.sh** | Write\|Edit | Records which files changed this session |
-| **code-review.sh** | Write\|Edit | Triggers code review via Multi-MCP (optional dependency) |
-| **plan-validate.sh** | Write\|Edit | Validates changes align with MASTER_PLAN.md |
+| **code-review.sh** | Write\|Edit | Suggests code review via Multi-MCP on significant changes (optional dependency) |
+| **plan-validate.sh** | Write\|Edit | Validates MASTER_PLAN.md structural integrity (phases, status fields, decision IDs) |
 | **test-runner.sh** | Write\|Edit | Runs project tests asynchronously after writes |
 
 ### Session Lifecycle
@@ -213,7 +215,7 @@ Three checks use transparent rewrites — the model's command is silently replac
 2. `--force` → `--force-with-lease`
 3. `git worktree remove` → prepends `cd` to main worktree first
 
-Commits and merges require a `.test-status` file showing `pass` within the last 10 minutes. Missing or failed test status = denied.
+Commits and merges require a `.test-status` file showing `pass`. A pass of any age satisfies the gate; any non-pass status or missing file = denied.
 
 ---
 
@@ -289,7 +291,7 @@ The `@decision` annotation creates a bidirectional mapping between MASTER_PLAN.m
 | **last30days** | Recent discussions from Reddit, X, and web with engagement metrics (submodule) | Community sentiment, current practices, "what are people using in 2026" |
 | **context-preservation** | Structured summaries for session continuity across compaction | Long sessions, before `/compact`, complex multi-session work |
 
-Both `deep-research` and `last30days` require API keys but degrade gracefully — the system works without them, you just lose the research capability.
+The `deep-research` skill uses API keys for OpenAI, Perplexity, and Gemini but degrades gracefully with fewer providers. The `last30days` skill works without any API keys. The core workflow (agents + hooks) is independent of both.
 
 ### Commands
 
@@ -386,7 +388,7 @@ Try writing a file to `/tmp/test.txt` — `guard.sh` should rewrite it to `tmp/t
 | Documentation | Optional | File headers and @decision enforced on 50+ line files |
 | Session end | Just stops | Decision audit + session summary + forward momentum check |
 | Commits | Executes on request | Requires approval via Guardian agent; test evidence required |
-| Code review | None | Auto-triggered on file writes (when Multi-MCP available) |
+| Code review | None | Suggested on significant file writes (when Multi-MCP available) |
 
 ---
 
@@ -475,7 +477,7 @@ Try writing a file to `/tmp/test.txt` — `guard.sh` should rewrite it to `tmp/t
 
 ## Recovery
 
-Archived files are stored in `.archive/YYYYMMDD/`. Full backups at `~/.claude-backup-*.tar.gz`.
+Archived files are stored in `.archive/YYYYMMDD/`. Full backups at `~/claude-backup-*.tar.gz`.
 
 To debug a hook: run it manually with JSON on stdin:
 ```bash
