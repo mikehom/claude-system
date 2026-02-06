@@ -64,6 +64,23 @@ for pattern in "$PROJECT_ROOT/.claude/.session-changes"* "$PROJECT_ROOT/.claude/
 done
 [[ "$STALE_FILE_COUNT" -gt 0 ]] && CONTEXT_PARTS+=("Stale session files: $STALE_FILE_COUNT from previous session")
 
+# --- Pending todos (GitHub Issues labeled claude-todo) ---
+TODO_SCRIPT="$HOME/.claude/scripts/todo.sh"
+if [[ -x "$TODO_SCRIPT" ]] && command -v gh >/dev/null 2>&1; then
+    TODO_COUNTS=$("$TODO_SCRIPT" count --all 2>/dev/null || echo "0|0|0")
+    TODO_PROJECT=$(echo "$TODO_COUNTS" | cut -d'|' -f1)
+    TODO_GLOBAL=$(echo "$TODO_COUNTS" | cut -d'|' -f2)
+    TODO_STALE=$(echo "$TODO_COUNTS" | cut -d'|' -f3)
+    TODO_TOTAL=$((TODO_PROJECT + TODO_GLOBAL))
+
+    if [[ "$TODO_TOTAL" -gt 0 ]]; then
+        TODO_LINE="Pending todos: ${TODO_PROJECT} project, ${TODO_GLOBAL} global"
+        [[ "$TODO_STALE" -gt 0 ]] && TODO_LINE="$TODO_LINE ($TODO_STALE stale >14d)"
+        TODO_LINE="$TODO_LINE. Use /todos to review."
+        CONTEXT_PARTS+=("$TODO_LINE")
+    fi
+fi
+
 # --- Pending agent findings ---
 FINDINGS_FILE="${PROJECT_ROOT}/.claude/.agent-findings"
 if [[ -f "$FINDINGS_FILE" && -s "$FINDINGS_FILE" ]]; then

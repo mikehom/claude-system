@@ -57,6 +57,7 @@
     "ask": [],
     "defaultMode": "plan"
   },
+  "model": "claude-opus-4-6",
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "context7"
@@ -265,6 +266,5 @@
   "autoUpdatesChannel": "latest",
   "installation": {
     "method": "native"
-  },
-  "model": "opus"
+  }
 }

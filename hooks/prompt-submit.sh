@@ -85,6 +85,11 @@ if [[ -f "$FINDINGS_FILE" && -s "$FINDINGS_FILE" ]]; then
     rm -f "$FINDINGS_FILE"
 fi
 
+# --- Detect deferred-work language → suggest /todo ---
+if echo "$PROMPT" | grep -qiE '\blater\b|\bdefer\b|\bbacklog\b|\beventually\b|\bsomeday\b|\bpark (this|that|it)\b|\bremind me\b|\bcome back to\b|\bfuture\b.*\b(todo|task|idea)\b|\bnote.*(for|to) (later|self)\b'; then
+    CONTEXT_PARTS+=("Deferred-work language detected. Suggest using /todo to capture this idea so it persists across sessions.")
+fi
+
 # --- Check for plan/implement/status keywords ---
 if echo "$PROMPT" | grep -qiE '\bplan\b|\bimplement\b|\bphase\b|\bmaster.plan\b|\bstatus\b|\bprogress\b|\bdemo\b'; then
     get_plan_status "$PROJECT_ROOT"

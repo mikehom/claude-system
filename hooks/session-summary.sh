@@ -144,6 +144,19 @@ else
     fi
 fi
 
+# --- Pending todos reminder ---
+TODO_SCRIPT="$HOME/.claude/scripts/todo.sh"
+if [[ -x "$TODO_SCRIPT" ]] && command -v gh >/dev/null 2>&1; then
+    TODO_COUNTS=$("$TODO_SCRIPT" count --all 2>/dev/null || echo "0|0|0")
+    TODO_PROJECT=$(echo "$TODO_COUNTS" | cut -d'|' -f1)
+    TODO_GLOBAL=$(echo "$TODO_COUNTS" | cut -d'|' -f2)
+    TODO_TOTAL=$((TODO_PROJECT + TODO_GLOBAL))
+
+    if [[ "$TODO_TOTAL" -gt 0 ]]; then
+        SUMMARY+="\nTodos: ${TODO_PROJECT} project + ${TODO_GLOBAL} global pending."
+    fi
+fi
+
 SUMMARY+="\nNext: $NEXT_ACTION"
 
 # Output as systemMessage
