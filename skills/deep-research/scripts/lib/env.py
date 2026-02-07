@@ -5,8 +5,7 @@ providers have different pricing and availability. Users may only have one or tw
 keys. The skill adapts its output based on which providers are available rather
 than requiring all three.
 
-Loads API keys from central ~/.claude/.env. Falls back to legacy
-~/.config/deep-research/.env for backward compatibility.
+Loads API keys from central ~/.claude/.env.
 """
 
 import sys

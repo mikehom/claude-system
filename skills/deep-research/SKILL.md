@@ -13,15 +13,14 @@ Query up to 3 deep research models (OpenAI o3-deep-research, Perplexity sonar-de
 
 ## Setup Check
 
-The skill requires at least one API key. Check `~/.config/deep-research/.env`:
+The skill requires at least one API key. Check `~/.claude/.env`:
 
 ### First-Time Setup
 
 If no config exists, create it:
 
 ```bash
-mkdir -p ~/.config/deep-research
-cat > ~/.config/deep-research/.env << 'ENVEOF'
+cat > ~/.claude/.env << 'ENVEOF'
 # Deep Research API Configuration
 # All keys are optional — skill works with any subset
 
@@ -35,8 +34,8 @@ PERPLEXITY_API_KEY=
 GEMINI_API_KEY=
 ENVEOF
 
-chmod 600 ~/.config/deep-research/.env
-echo "Config created at ~/.config/deep-research/.env"
+chmod 600 ~/.claude/.env
+echo "Config created at ~/.claude/.env"
 echo "Add at least one API key for deep research."
 ```
 

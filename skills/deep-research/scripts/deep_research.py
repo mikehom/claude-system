@@ -173,7 +173,7 @@ def main():
             "provider_count": 0,
             "success_count": 0,
             "results": [],
-            "error": "No API keys configured. Create ~/.config/deep-research/.env with at least one of: OPENAI_API_KEY, PERPLEXITY_API_KEY, GEMINI_API_KEY",
+            "error": "No API keys configured. Create ~/.claude/.env with at least one of: OPENAI_API_KEY, PERPLEXITY_API_KEY, GEMINI_API_KEY",
         }
         if args.emit == "json":
             print(json.dumps(error_output, indent=2))
