@@ -3,7 +3,7 @@
 A multi-agent workflow for Claude Code that enforces plan-first development, worktree isolation, test-first implementation, and approval gates through deterministic hooks.
 
 - **3 specialized agents** — Planner, Implementer, Guardian — each with defined responsibilities and model assignments
-- **24 hooks** — Mechanical enforcement of engineering practices at every lifecycle event
+- **24 hooks + 2 shared libraries** — Mechanical enforcement of engineering practices at every lifecycle event
 - **Research skills** — Multi-model deep research and recent web discussion analysis
 - **Split settings** — Tracked universal config + gitignored local overrides
 
@@ -15,7 +15,7 @@ Claude Code out of the box is capable but undisciplined. It commits directly to 
 
 None of these are bugs — they're defaults. This configuration replaces those defaults with enforced engineering discipline.
 
-Three agents divide responsibilities so no single context handles planning, implementation, and git operations. Twenty-four hooks run deterministically at every lifecycle event — they don't depend on the model remembering instructions, they execute mechanically regardless of context window pressure.
+Three agents divide responsibilities so no single context handles planning, implementation, and git operations. Twenty-four hooks (plus two shared libraries) run deterministically at every lifecycle event — they don't depend on the model remembering instructions, they execute mechanically regardless of context window pressure.
 
 The result: every session starts with context injection, every file write is gated by branch protection and test status, every commit requires approval, every session ends with a structured summary and forward momentum.
 
@@ -266,7 +266,7 @@ The `@decision` annotation creates a bidirectional mapping between MASTER_PLAN.m
         ┌────────────┐  ┌────────────┐  ┌────────────┐
         │   Agents   │  │   Hooks    │  │  Settings  │
         │            │  │            │  │            │
-        │ planner    │  │ 23 scripts │  │ .json      │
+        │ planner    │  │ 24 hooks   │  │ .json      │
         │ implementer│  │ in hooks/  │  │ (universal │
         │ guardian   │  │            │  │  + local)  │
         └─────┬──────┘  └─────┬──────┘  └────────────┘
@@ -280,8 +280,8 @@ The `@decision` annotation creates a bidirectional mapping between MASTER_PLAN.m
         │   Skills   │  │  Commands  │
         │            │  │            │
         │ research   │  │ /compact   │
-        │ context    │  │ /todo      │
-        │ last30days │  │ /todos     │
+        │ context    │  │ /backlog   │
+        │ last30days │  │            │
         └────────────┘  └────────────┘
 ```
 
@@ -300,8 +300,7 @@ The `deep-research` skill uses API keys for OpenAI, Perplexity, and Gemini but d
 | Command | Purpose |
 |---------|---------|
 | `/compact` | Generate structured context summary before compaction (prevents amnesia) |
-| `/todo <text>` | Capture idea/task as GitHub Issue — project-scoped by default, `--global` for backlog |
-| `/todos` | List, close, triage pending todos — supports `done <#>`, `stale`, `review` |
+| `/backlog` | Unified backlog management — list, create, close, triage todos (GitHub Issues). No args = list; `/backlog <text>` = create; `/backlog done <#>` = close; `/backlog review` = interactive triage |
 
 ---
 
@@ -333,9 +332,9 @@ cp settings.local.example.json settings.local.json
 # Edit to set your model preference, MCP servers, plugins
 ```
 
-### 3. Todo System (GitHub Issues)
+### 3. Backlog System (GitHub Issues)
 
-The `/todo` and `/todos` commands persist ideas as GitHub Issues.
+The `/backlog` command persists ideas as GitHub Issues.
 On first use, auto-detects your GitHub username and creates a private `cc-todos` repo.
 
 **Requirements:** `gh` CLI installed and authenticated (`gh auth login`)
@@ -446,11 +445,13 @@ Try writing a file to `/tmp/test.txt` — `guard.sh` should rewrite it to `tmp/t
 │
 ├── commands/                     # User-invoked slash commands
 │   ├── compact.md                # /compact — context preservation
-│   ├── todo.md                   # /todo — quick idea capture as GitHub Issue
-│   └── todos.md                  # /todos — list, close, triage todos
+│   └── backlog.md                # /backlog — unified backlog management (GitHub Issues)
 │
-├── scripts/                      # Backend scripts for commands
-│   └── todo.sh                   # GitHub Issue management for /todo and /todos
+├── scripts/                      # Backend scripts for commands and hooks
+│   ├── todo.sh                   # GitHub Issue management backend for /backlog
+│   ├── statusline.sh             # Status line with git state and todo HUD
+│   └── lib/
+│       └── keychain.py           # Centralized API key management
 │
 ├── docs/                         # Design documentation
 │   ├── context-management-sota-2026.md

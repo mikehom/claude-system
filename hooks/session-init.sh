@@ -57,6 +57,23 @@ if [[ "$RESEARCH_EXISTS" == "true" ]]; then
     CONTEXT_PARTS+=("Research: $RESEARCH_ENTRY_COUNT entries | recent: $RESEARCH_RECENT_TOPICS")
 fi
 
+# --- Preserved context from pre-compaction ---
+# compact-preserve.sh writes .preserved-context before compaction.
+# Re-inject it here so the post-compaction session has full context
+# even if the additionalContext from PreCompact was lost in summarization.
+PRESERVE_FILE="${PROJECT_ROOT}/.claude/.preserved-context"
+if [[ -f "$PRESERVE_FILE" && -s "$PRESERVE_FILE" ]]; then
+    CONTEXT_PARTS+=("Preserved context from before compaction:")
+    while IFS= read -r line; do
+        # Skip the header comment
+        [[ "$line" =~ ^#.* ]] && continue
+        [[ -z "$line" ]] && continue
+        CONTEXT_PARTS+=("  $line")
+    done < "$PRESERVE_FILE"
+    # One-time use: remove after injecting so it doesn't persist across sessions
+    rm -f "$PRESERVE_FILE"
+fi
+
 # --- Stale session files ---
 STALE_FILE_COUNT=0
 for pattern in "$PROJECT_ROOT/.claude/.session-changes"* "$PROJECT_ROOT/.claude/.session-decisions"*; do

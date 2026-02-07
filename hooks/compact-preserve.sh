@@ -4,73 +4,66 @@ set -euo pipefail
 # Pre-compaction context preservation.
 # PreCompact hook
 #
-# Injects project state into additionalContext before compaction so the
-# compacted context retains:
-#   - Current git branch and status
-#   - Files modified this session
-#   - MASTER_PLAN.md existence and active phase
-#   - Active worktrees
+# Two outputs:
+#   1. Persistent file: .claude/.preserved-context (survives compaction, read by session-init.sh)
+#   2. additionalContext: injected into the system message before compaction
+#
+# The additionalContext includes a directive instructing Claude to generate
+# a structured context summary (per context-preservation skill) as part of
+# the compaction. This ensures session intent (not just project state) survives.
 
 source "$(dirname "$0")/log.sh"
+source "$(dirname "$0")/context-lib.sh"
 
 PROJECT_ROOT=$(detect_project_root)
 CONTEXT_PARTS=()
 
-# --- Git state ---
-if [[ -d "$PROJECT_ROOT/.git" ]]; then
-    BRANCH=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-    DIRTY_COUNT=$(git -C "$PROJECT_ROOT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
-    COMMIT_COUNT=$(git -C "$PROJECT_ROOT" log --oneline -3 2>/dev/null | wc -l | tr -d ' ')
-    WT_COUNT=$(git -C "$PROJECT_ROOT" worktree list 2>/dev/null | grep -v "(bare)" | tail -n +2 | wc -l | tr -d ' ')
+# --- Git state (via shared library) ---
+get_git_state "$PROJECT_ROOT"
 
-    GIT_LINE="Git: $BRANCH | $DIRTY_COUNT uncommitted | $COMMIT_COUNT recent commits"
-    [[ "$WT_COUNT" -gt 0 ]] && GIT_LINE="$GIT_LINE | $WT_COUNT worktrees"
+if [[ -n "$GIT_BRANCH" ]]; then
+    GIT_LINE="Git: $GIT_BRANCH | $GIT_DIRTY_COUNT uncommitted"
+    [[ "$GIT_WT_COUNT" -gt 0 ]] && GIT_LINE="$GIT_LINE | $GIT_WT_COUNT worktrees"
     CONTEXT_PARTS+=("$GIT_LINE")
-fi
 
-# --- MASTER_PLAN.md ---
-if [[ -f "$PROJECT_ROOT/MASTER_PLAN.md" ]]; then
-    # Try to extract active phase
-    PHASE=$(grep -iE '^\#.*phase|^\*\*Phase' "$PROJECT_ROOT/MASTER_PLAN.md" 2>/dev/null | tail -1 || echo "")
-    if [[ -n "$PHASE" ]]; then
-        CONTEXT_PARTS+=("MASTER_PLAN.md: active ($PHASE)")
-    else
-        CONTEXT_PARTS+=("MASTER_PLAN.md: exists")
+    # Include worktree details (branch names help resume context)
+    if [[ -n "$GIT_WORKTREES" ]]; then
+        while IFS= read -r wt_line; do
+            CONTEXT_PARTS+=("  worktree: $wt_line")
+        done <<< "$GIT_WORKTREES"
     fi
 fi
 
-# --- Session file changes (mirrors surface.sh fallback logic) ---
-SESSION_ID="${CLAUDE_SESSION_ID:-}"
-SESSION_FILE=""
-if [[ -n "$SESSION_ID" && -f "$PROJECT_ROOT/.claude/.session-changes-${SESSION_ID}" ]]; then
-    SESSION_FILE="$PROJECT_ROOT/.claude/.session-changes-${SESSION_ID}"
-elif [[ -f "$PROJECT_ROOT/.claude/.session-changes" ]]; then
-    SESSION_FILE="$PROJECT_ROOT/.claude/.session-changes"
-else
-    # Glob fallback for any session file (legacy or mismatched ID)
-    SESSION_FILE=$(ls "$PROJECT_ROOT/.claude/.session-changes"* 2>/dev/null | head -1 || echo "")
-    # Also check legacy name
-    if [[ -z "$SESSION_FILE" ]]; then
-        SESSION_FILE=$(ls "$PROJECT_ROOT/.claude/.session-decisions"* 2>/dev/null | head -1 || echo "")
-    fi
+# --- MASTER_PLAN.md (via shared library) ---
+get_plan_status "$PROJECT_ROOT"
+
+if [[ "$PLAN_EXISTS" == "true" ]]; then
+    PLAN_LINE="Plan: $PLAN_COMPLETED_PHASES/$PLAN_TOTAL_PHASES phases done"
+    [[ -n "$PLAN_PHASE" ]] && PLAN_LINE="$PLAN_LINE | active: $PLAN_PHASE"
+    CONTEXT_PARTS+=("$PLAN_LINE")
 fi
+
+# --- Session file changes ---
+get_session_changes "$PROJECT_ROOT"
 
 if [[ -n "$SESSION_FILE" && -f "$SESSION_FILE" ]]; then
     FILE_COUNT=$(sort -u "$SESSION_FILE" | wc -l | tr -d ' ')
-    # Comma-separated file list, truncated at 5
     FILE_LIST=$(sort -u "$SESSION_FILE" | head -5 | xargs -I{} basename {} | paste -sd', ' -)
     REMAINING=$((FILE_COUNT - 5))
     if [[ "$REMAINING" -gt 0 ]]; then
-        CONTEXT_PARTS+=("Modified: $FILE_LIST (+$REMAINING more)")
+        CONTEXT_PARTS+=("Modified this session: $FILE_LIST (+$REMAINING more)")
     else
-        CONTEXT_PARTS+=("Modified: $FILE_LIST")
+        CONTEXT_PARTS+=("Modified this session: $FILE_LIST")
     fi
 
-    # --- Key @decisions made this session (one line) ---
+    # Full paths for context (written to file, not displayed)
+    FULL_PATHS=$(sort -u "$SESSION_FILE" | head -10)
+
+    # --- Key @decisions made this session ---
     DECISIONS_FOUND=()
     while IFS= read -r file; do
         [[ ! -f "$file" ]] && continue
-        decision_line=$(grep -oE '@decision\s+[A-Z]+-[A-Z0-9-]+|# DECISION:\s*[^.]+|// DECISION\([^)]+\)' "$file" 2>/dev/null | head -1 || echo "")
+        decision_line=$(grep -oE '@decision\s+[A-Z]+-[A-Z0-9-]+' "$file" 2>/dev/null | head -1 || echo "")
         if [[ -n "$decision_line" ]]; then
             DECISIONS_FOUND+=("$decision_line ($(basename "$file"))")
         fi
@@ -82,7 +75,7 @@ if [[ -n "$SESSION_FILE" && -f "$SESSION_FILE" ]]; then
     fi
 fi
 
-# --- Feedback spine state ---
+# --- Test status ---
 TEST_STATUS="${PROJECT_ROOT}/.claude/.test-status"
 if [[ -f "$TEST_STATUS" ]]; then
     TS_RESULT=$(cut -d'|' -f1 "$TEST_STATUS")
@@ -90,6 +83,16 @@ if [[ -f "$TEST_STATUS" ]]; then
     CONTEXT_PARTS+=("Test status: ${TS_RESULT} (${TS_FAILS} failures)")
 fi
 
+# --- Agent findings (unresolved issues from subagents) ---
+FINDINGS_FILE="${PROJECT_ROOT}/.claude/.agent-findings"
+if [[ -f "$FINDINGS_FILE" && -s "$FINDINGS_FILE" ]]; then
+    CONTEXT_PARTS+=("Unresolved agent findings:")
+    while IFS= read -r line; do
+        CONTEXT_PARTS+=("  $line")
+    done < "$FINDINGS_FILE"
+fi
+
+# --- Audit trail (last 5) ---
 AUDIT_LOG="${PROJECT_ROOT}/.claude/.audit-log"
 if [[ -f "$AUDIT_LOG" && -s "$AUDIT_LOG" ]]; then
     CONTEXT_PARTS+=("Recent audit (last 5):")
@@ -98,10 +101,38 @@ if [[ -f "$AUDIT_LOG" && -s "$AUDIT_LOG" ]]; then
     done < <(tail -5 "$AUDIT_LOG")
 fi
 
-# --- Output ---
+# --- Write persistent file ---
+# This file survives compaction and is read by session-init.sh on the
+# SessionStart(compact) event. Belt-and-suspenders: even if the
+# additionalContext is lost during compaction, session-init.sh can
+# re-inject this data.
+PRESERVE_FILE="${PROJECT_ROOT}/.claude/.preserved-context"
 if [[ ${#CONTEXT_PARTS[@]} -gt 0 ]]; then
+    mkdir -p "$PROJECT_ROOT/.claude"
+    {
+        echo "# Preserved context from pre-compaction ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+        printf '%s\n' "${CONTEXT_PARTS[@]}"
+        # Include full file paths for re-navigation
+        if [[ -n "${FULL_PATHS:-}" ]]; then
+            echo ""
+            echo "# Full paths of session-modified files:"
+            echo "$FULL_PATHS"
+        fi
+    } > "$PRESERVE_FILE"
+fi
+
+# --- Output additionalContext ---
+# Includes both the project state AND a directive for Claude to generate
+# a structured context summary during compaction.
+if [[ ${#CONTEXT_PARTS[@]} -gt 0 ]]; then
+    DIRECTIVE="COMPACTION CONTEXT PRESERVATION: Before summarizing, generate a structured context summary following the context-preservation format: (1) Current Objective & Status — what is the goal, what is done, what is the immediate next step; (2) Active Context — absolute file paths being worked on, recent changes with function names; (3) Constraints & Decisions — user preferences, discarded approaches, architectural rules; (4) Continuity Handoff — 'When resuming, the first thing to do is...' with a specific actionable instruction. Include this summary in your compaction output so the next session can continue seamlessly."
+
     CONTEXT=$(printf '%s\n' "${CONTEXT_PARTS[@]}")
-    ESCAPED=$(echo "$CONTEXT" | jq -Rs .)
+    FULL_OUTPUT="${DIRECTIVE}
+
+--- Project State ---
+${CONTEXT}"
+    ESCAPED=$(echo "$FULL_OUTPUT" | jq -Rs .)
     cat <<EOF
 {
   "hookSpecificOutput": {
