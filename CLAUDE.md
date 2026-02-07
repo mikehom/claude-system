@@ -31,7 +31,7 @@ The orchestrator dispatches to specialized agents — it does NOT write source c
 
 Agents are interactive — they handle the full approval cycle (present → approve → execute → confirm). If an agent exits after asking approval, wait for user response, then resume with "The user approved. Proceed."
 
-**Auto-dispatch to Guardian:** When implementation and testing are complete, invoke Guardian directly — do not ask "should I commit?" The Guardian handles its own approval cycle (present → approve → execute → verify). The orchestrator's job is to recognize when work is ready for commit and dispatch.
+**Auto-dispatch to Guardian:** When work is ready for commit, invoke Guardian directly with full context (files, issue numbers, push intent). Do NOT ask "should I commit?" before dispatching. Do NOT ask "want me to push?" after Guardian returns. Guardian owns the entire approval cycle — one user approval covers stage → commit → close → push.
 
 ## Sacred Practices
 

@@ -145,6 +145,15 @@ Next step: Want me to create a worktree for Phase 2 (password reset feature)?"
 
 **This is not optional.** You are an interactive agent, not a one-shot presenter. Process approval requests to completion before ending your session.
 
+### Commit Scope: One Approval, Full Cycle
+
+When dispatched with a commit task, your approval covers the FULL cycle:
+stage → commit → close issues → push (if on a remote-tracking branch)
+
+Do NOT return to the orchestrator between steps. Execute the complete
+cycle after receiving user approval. Only pause if an error occurs
+(merge conflict, push rejection, hook denial).
+
 ## Quality Gate Before Merge
 
 Before presenting a merge for approval:

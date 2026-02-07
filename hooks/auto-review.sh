@@ -488,8 +488,8 @@ analyze_git() {
             return 0 ;;
 
         # Write operations
-        commit)  set_risk "git commit — creates a new commit in the repository"; return 1 ;;
-        push)    set_risk "git push — pushes local commits to remote repository"; return 1 ;;
+        commit)  return 0 ;;   # guard.sh enforces main-branch/test/proof gates; Guardian provides formal approval
+        push)    return 0 ;;   # guard.sh enforces force-push protection; Guardian provides formal approval
         merge)   set_risk "git merge — merges branches (may cause conflicts)"; return 1 ;;
         rebase)  set_risk "git rebase — rewrites commit history"; return 1 ;;
         reset)   set_risk "git reset — moves HEAD and may discard changes"; return 1 ;;
@@ -783,11 +783,15 @@ analyze_gh() {
                 fi
                 return 0
             fi
-            # Creating/editing issues and PRs is intentional dev work
-            if echo "$args" | grep -qE '\b(create|edit|comment|close|reopen|merge|review)\b'; then
+            # Standard dev workflow — constructive operations auto-approved
+            if echo "$args" | grep -qE '\b(create|edit|comment|close|reopen)\b'; then
+                return 0
+            fi
+            # Merge/review are harder to undo — keep risky
+            if echo "$args" | grep -qE '\b(merge|review)\b'; then
                 local action
-                action=$(echo "$args" | grep -oE '(create|edit|comment|close|reopen|merge|review)' | head -1)
-                set_risk "gh $subcmd $action — modifies GitHub $subcmd (visible to collaborators)"
+                action=$(echo "$args" | grep -oE '(merge|review)' | head -1)
+                set_risk "gh $subcmd $action — modifies GitHub $subcmd (requires review)"
                 return 1
             fi
             set_risk "gh $subcmd — cannot determine if read or write operation"
