@@ -36,6 +36,7 @@ fi
 
 # --- MASTER_PLAN.md ---
 get_plan_status "$PROJECT_ROOT"
+write_statusline_cache "$PROJECT_ROOT"
 
 if [[ "$PLAN_EXISTS" == "true" ]]; then
     PLAN_LINE="Plan:"
@@ -106,6 +107,8 @@ fi
 # Without this reset, /clear leaves the old prompt-count file and the fallback
 # never triggers again, so the HUD disappears.
 rm -f "$PROJECT_ROOT/.claude/.prompt-count-"*
+rm -f "$PROJECT_ROOT/.claude/.session-start-epoch"
+rm -f "$PROJECT_ROOT/.claude/.subagent-tracker"
 
 # --- Clear stale test status from previous session ---
 # .test-status is now a hard gate for commits (guard.sh Checks 6/7).

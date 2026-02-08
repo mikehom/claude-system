@@ -18,6 +18,9 @@ AGENT_RESPONSE=$(read_input 2>/dev/null || echo "{}")
 PROJECT_ROOT=$(detect_project_root)
 PLAN="$PROJECT_ROOT/MASTER_PLAN.md"
 
+# Track subagent completion
+track_subagent_stop "$PROJECT_ROOT" "planner"
+
 ISSUES=()
 CONTEXT=""
 

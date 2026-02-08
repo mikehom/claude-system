@@ -26,9 +26,11 @@ PROMPT_COUNT_FILE="${PROJECT_ROOT}/.claude/.prompt-count-${CLAUDE_SESSION_ID:-$$
 if [[ ! -f "$PROMPT_COUNT_FILE" ]]; then
     mkdir -p "${PROJECT_ROOT}/.claude"
     echo "1" > "$PROMPT_COUNT_FILE"
+    echo "$(date +%s)" > "${PROJECT_ROOT}/.claude/.session-start-epoch"
     # Inject full session context (same as session-init.sh)
     get_git_state "$PROJECT_ROOT"
     get_plan_status "$PROJECT_ROOT"
+    write_statusline_cache "$PROJECT_ROOT"
     [[ -n "$GIT_BRANCH" ]] && CONTEXT_PARTS+=("Git: branch=$GIT_BRANCH, $GIT_DIRTY_COUNT uncommitted")
     [[ "$PLAN_EXISTS" == "true" ]] && CONTEXT_PARTS+=("MASTER_PLAN.md: $PLAN_COMPLETED_PHASES/$PLAN_TOTAL_PHASES phases done")
     [[ "$PLAN_EXISTS" == "false" ]] && CONTEXT_PARTS+=("MASTER_PLAN.md: not found (required before implementation)")
@@ -164,6 +166,52 @@ if echo "$PROMPT" | grep -qiE '\bresearch\b|\bcompare\b|\bwhat.*(people|communit
         CONTEXT_PARTS+=("Research log: $RESEARCH_ENTRY_COUNT entries. Check .claude/research-log.md before invoking /deep-research or /last30days.")
     else
         CONTEXT_PARTS+=("No prior research. /deep-research for deep analysis, /last30days for recent community discussions.")
+    fi
+fi
+
+# --- Increment prompt counter ---
+if [[ -f "$PROMPT_COUNT_FILE" ]]; then
+    CURRENT_COUNT=$(cat "$PROMPT_COUNT_FILE" 2>/dev/null || echo "0")
+    [[ "$CURRENT_COUNT" =~ ^[0-9]+$ ]] || CURRENT_COUNT=0
+    echo "$((CURRENT_COUNT + 1))" > "$PROMPT_COUNT_FILE"
+fi
+
+# --- Compaction heuristic ---
+# @decision DEC-COMPACT-001
+# @title Smart compaction suggestions based on prompts and session duration
+# @status accepted
+# @rationale Proactively suggest /compact at predictable checkpoints (35, 60 prompts
+# or 45, 90 minutes) to prevent context overflow. Primary trigger is prompt count
+# (more reliable). Secondary is session duration (catches long sessions with fewer
+# prompts). Narrow time windows prevent spam across multiple prompts.
+if [[ -f "$PROMPT_COUNT_FILE" ]]; then
+    PROMPT_NUM=$(cat "$PROMPT_COUNT_FILE" 2>/dev/null || echo "0")
+    [[ "$PROMPT_NUM" =~ ^[0-9]+$ ]] || PROMPT_NUM=0
+
+    SUGGEST_COMPACT=false
+    COMPACT_REASON=""
+
+    # Primary: prompt count thresholds
+    if [[ "$PROMPT_NUM" -eq 35 || "$PROMPT_NUM" -eq 60 ]]; then
+        SUGGEST_COMPACT=true
+        COMPACT_REASON="$PROMPT_NUM prompts in this session"
+    fi
+
+    # Secondary: session duration
+    EPOCH_FILE="${PROJECT_ROOT}/.claude/.session-start-epoch"
+    if [[ "$SUGGEST_COMPACT" == "false" && -f "$EPOCH_FILE" ]]; then
+        START_EPOCH=$(cat "$EPOCH_FILE" 2>/dev/null || echo "0")
+        NOW_EPOCH=$(date +%s)
+        ELAPSED_MIN=$(( (NOW_EPOCH - START_EPOCH) / 60 ))
+        if [[ "$ELAPSED_MIN" -ge 45 && "$ELAPSED_MIN" -le 47 ]] || \
+           [[ "$ELAPSED_MIN" -ge 90 && "$ELAPSED_MIN" -le 92 ]]; then
+            SUGGEST_COMPACT=true
+            COMPACT_REASON="${ELAPSED_MIN} minutes into session"
+        fi
+    fi
+
+    if [[ "$SUGGEST_COMPACT" == "true" ]]; then
+        CONTEXT_PARTS+=("Context management: ${COMPACT_REASON}. Consider running /compact to preserve context and free up the context window.")
     fi
 fi
 

@@ -177,6 +177,126 @@ append_audit() {
     echo "$(date -u +%Y-%m-%dT%H:%M:%S)|${event}|${detail}" >> "$audit_file"
 }
 
+# --- Statusline cache writer ---
+# @decision DEC-CACHE-001
+# @title Statusline cache for status bar enrichment
+# @status accepted
+# @rationale Hooks already compute git/plan/test state. Cache it so statusline.sh
+# can render rich status bar without re-computing or re-parsing. Atomic writes
+# prevent race conditions. JSON format for extensibility.
+write_statusline_cache() {
+    local root="$1"
+    local cache_file="$root/.claude/.statusline-cache"
+    mkdir -p "$root/.claude"
+
+    # Plan phase display
+    local plan_display="no plan"
+    if [[ "$PLAN_EXISTS" == "true" && "$PLAN_TOTAL_PHASES" -gt 0 ]]; then
+        local current_phase=$((PLAN_COMPLETED_PHASES + PLAN_IN_PROGRESS_PHASES))
+        [[ "$current_phase" -eq 0 ]] && current_phase=1
+        plan_display="Phase ${current_phase}/${PLAN_TOTAL_PHASES}"
+    fi
+
+    # Test status
+    local test_display="unknown"
+    local ts_file="$root/.claude/.test-status"
+    if [[ -f "$ts_file" ]]; then
+        test_display=$(cut -d'|' -f1 "$ts_file")
+    fi
+
+    # Subagent status
+    get_subagent_status "$root"
+
+    # Atomic write
+    local tmp_cache="${cache_file}.tmp.$$"
+    jq -n \
+        --arg dirty "${GIT_DIRTY_COUNT:-0}" \
+        --arg wt "${GIT_WT_COUNT:-0}" \
+        --arg plan "$plan_display" \
+        --arg test "$test_display" \
+        --arg ts "$(date +%s)" \
+        --arg sa_count "${SUBAGENT_ACTIVE_COUNT:-0}" \
+        --arg sa_types "${SUBAGENT_ACTIVE_TYPES:-}" \
+        --arg sa_total "${SUBAGENT_TOTAL_COUNT:-0}" \
+        '{dirty:($dirty|tonumber),worktrees:($wt|tonumber),plan:$plan,test:$test,updated:($ts|tonumber),agents_active:($sa_count|tonumber),agents_types:$sa_types,agents_total:($sa_total|tonumber)}' \
+        > "$tmp_cache" && mv "$tmp_cache" "$cache_file"
+}
+
+# --- Subagent tracking ---
+# @decision DEC-SUBAGENT-001
+# @title Subagent lifecycle tracking via state file
+# @status accepted
+# @rationale SubagentStart/Stop hooks fire per-event but don't aggregate.
+# A JSON state file tracks active agents, total count, and types so the
+# status bar can display real-time agent activity. Token usage not available
+# from hooks — tracked as backlog item cc-todos#37.
+
+track_subagent_start() {
+    local root="$1" agent_type="$2"
+    local tracker="$root/.claude/.subagent-tracker"
+    mkdir -p "$root/.claude"
+
+    # Append start record (line-based for simplicity and atomicity)
+    echo "ACTIVE|${agent_type}|$(date +%s)" >> "$tracker"
+}
+
+track_subagent_stop() {
+    local root="$1" agent_type="$2"
+    local tracker="$root/.claude/.subagent-tracker"
+    [[ ! -f "$tracker" ]] && return
+
+    # Remove the OLDEST matching ACTIVE entry for this type (FIFO)
+    # Use sed to delete first matching line only
+    local tmp="${tracker}.tmp.$$"
+    local found=false
+    while IFS= read -r line; do
+        if [[ "$found" == "false" && "$line" == "ACTIVE|${agent_type}|"* ]]; then
+            # Convert to DONE record
+            local start_epoch="${line##*|}"
+            local now_epoch=$(date +%s)
+            local duration=$((now_epoch - start_epoch))
+            echo "DONE|${agent_type}|${start_epoch}|${duration}" >> "$tmp"
+            found=true
+        else
+            echo "$line" >> "$tmp"
+        fi
+    done < "$tracker"
+
+    # If we didn't find a match (e.g., Bash/Explore agents that don't have SubagentStop matchers),
+    # just keep the original
+    if [[ "$found" == "true" ]]; then
+        mv "$tmp" "$tracker"
+    else
+        rm -f "$tmp"
+    fi
+}
+
+get_subagent_status() {
+    local root="$1"
+    local tracker="$root/.claude/.subagent-tracker"
+
+    SUBAGENT_ACTIVE_COUNT=0
+    SUBAGENT_ACTIVE_TYPES=""
+    SUBAGENT_TOTAL_COUNT=0
+
+    [[ ! -f "$tracker" ]] && return
+
+    # Count active agents
+    SUBAGENT_ACTIVE_COUNT=$(grep -c '^ACTIVE|' "$tracker" 2>/dev/null || echo 0)
+
+    # Get unique active types
+    SUBAGENT_ACTIVE_TYPES=$(grep '^ACTIVE|' "$tracker" 2>/dev/null | cut -d'|' -f2 | sort | uniq -c | sed 's/^ *//' | while read count type; do
+        if [[ "$count" -gt 1 ]]; then
+            echo "${type}x${count}"
+        else
+            echo "$type"
+        fi
+    done | paste -sd ',' - 2>/dev/null || echo "")
+
+    # Total = active + done
+    SUBAGENT_TOTAL_COUNT=$(wc -l < "$tracker" 2>/dev/null | tr -d ' ')
+}
+
 # Export for subshells
 export SOURCE_EXTENSIONS
-export -f get_git_state get_plan_status get_session_changes get_drift_data get_research_status is_source_file is_skippable_path append_audit
+export -f get_git_state get_plan_status get_session_changes get_drift_data get_research_status is_source_file is_skippable_path append_audit write_statusline_cache track_subagent_start track_subagent_stop get_subagent_status

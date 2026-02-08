@@ -17,6 +17,9 @@ AGENT_RESPONSE=$(read_input 2>/dev/null || echo "{}")
 
 PROJECT_ROOT=$(detect_project_root)
 
+# Track subagent completion
+track_subagent_stop "$PROJECT_ROOT" "implementer"
+
 ISSUES=()
 
 # Check 1: Current branch is NOT main/master (worktree was used)

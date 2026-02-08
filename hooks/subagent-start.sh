@@ -10,6 +10,7 @@ set -euo pipefail
 #   - MASTER_PLAN.md existence and active phase
 #   - Active worktrees
 #   - Agent-type-specific guidance
+#   - Tracks subagent spawn in .subagent-tracker for status bar
 
 source "$(dirname "$0")/log.sh"
 source "$(dirname "$0")/context-lib.sh"
@@ -23,6 +24,9 @@ CONTEXT_PARTS=()
 # --- Git + Plan state (one line) ---
 get_git_state "$PROJECT_ROOT"
 get_plan_status "$PROJECT_ROOT"
+
+# Track subagent spawn
+track_subagent_start "$PROJECT_ROOT" "${AGENT_TYPE:-unknown}"
 
 CTX_LINE="Context:"
 [[ -n "$GIT_BRANCH" ]] && CTX_LINE="$CTX_LINE $GIT_BRANCH"

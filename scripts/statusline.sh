@@ -1,18 +1,22 @@
 #!/usr/bin/env bash
-# statusline.sh — Claude Code status line with todo HUD segment.
+# statusline.sh — Claude Code status line with enriched HUD segments.
 #
 # Purpose: Reads JSON from stdin (model, workspace, version), reads cached
-# todo count, and outputs ANSI-formatted status line. Extracted from the
-# inline command in settings.json for maintainability.
+# todo count and .statusline-cache, and outputs ANSI-formatted status line.
+# Extracted from the inline command in settings.json for maintainability.
 #
-# @decision External script over inline command — the inline one-liner in
-# settings.json became unreadable when adding the todo segment. A script
-# is testable, lintable, and extensible. Status: accepted.
+# @decision DEC-CACHE-002
+# @title Status bar enrichment with cached hook data
+# @status accepted
+# @rationale Hooks compute git/plan/test state on every prompt and session start.
+# Cache that data so the status bar can display rich context without re-computing.
+# Segments show dirty count (red), worktrees (cyan), plan phase (blue/dim), test
+# status (green/red/dim), active agents (yellow). Only shown when relevant (dirty>0, etc).
 #
 # Input (stdin): JSON with .model.display_name, .workspace.current_dir, .version
 # Output (stdout): ANSI-formatted status line
 #
-# Segments: model | workspace | time | todos (if >0) | version
+# Segments: model | workspace | time | dirty (if >0) | worktrees (if >0) | plan | tests | agents (if >0) | todos (if >0) | version
 set -euo pipefail
 
 TODO_CACHE="$HOME/.claude/.todo-count"
@@ -34,6 +38,26 @@ if [[ -f "$TODO_CACHE" ]]; then
     [[ "$todo_count" =~ ^[0-9]+$ ]] || todo_count=0
 fi
 
+# Read statusline cache
+workspace_dir=$(echo "$input" | jq -r '.workspace.current_dir')
+CACHE_FILE="$workspace_dir/.claude/.statusline-cache"
+cache_dirty=0
+cache_wt=0
+cache_plan=""
+cache_test=""
+cache_agents=0
+cache_agents_types=""
+cache_agents_total=0
+if [[ -f "$CACHE_FILE" ]]; then
+    cache_dirty=$(jq -r '.dirty // 0' "$CACHE_FILE" 2>/dev/null || echo 0)
+    cache_wt=$(jq -r '.worktrees // 0' "$CACHE_FILE" 2>/dev/null || echo 0)
+    cache_plan=$(jq -r '.plan // ""' "$CACHE_FILE" 2>/dev/null || echo "")
+    cache_test=$(jq -r '.test // ""' "$CACHE_FILE" 2>/dev/null || echo "")
+    cache_agents=$(jq -r '.agents_active // 0' "$CACHE_FILE" 2>/dev/null || echo 0)
+    cache_agents_types=$(jq -r '.agents_types // ""' "$CACHE_FILE" 2>/dev/null || echo "")
+    cache_agents_total=$(jq -r '.agents_total // 0' "$CACHE_FILE" 2>/dev/null || echo 0)
+fi
+
 # Build status line
 # Colors: dim=model, bold cyan=workspace, yellow=time, magenta=todos, green=version
 # \033[2m = dim, \033[1;36m = bold cyan, \033[33m = yellow
@@ -43,6 +67,37 @@ sep='\033[2m│\033[0m'
 
 line=$(printf '\033[2m%s\033[0m \033[1;36m%s\033[0m %b \033[33m%s\033[0m' \
     "$model" "$workspace" "$sep" "$timestamp")
+
+# Git dirty (red, only if > 0)
+if [[ "$cache_dirty" -gt 0 ]]; then
+    line=$(printf '%s %b \033[31m%d dirty\033[0m' "$line" "$sep" "$cache_dirty")
+fi
+
+# Worktrees (cyan, only if > 0)
+if [[ "$cache_wt" -gt 0 ]]; then
+    line=$(printf '%s %b \033[36mWT:%d\033[0m' "$line" "$sep" "$cache_wt")
+fi
+
+# Plan phase (blue or dim)
+if [[ -n "$cache_plan" && "$cache_plan" != "no plan" ]]; then
+    line=$(printf '%s %b \033[34m%s\033[0m' "$line" "$sep" "$cache_plan")
+elif [[ "$cache_plan" == "no plan" ]]; then
+    line=$(printf '%s %b \033[2m%s\033[0m' "$line" "$sep" "$cache_plan")
+fi
+
+# Test status (green=pass, red=fail, dim=unknown)
+if [[ "$cache_test" == "pass" ]]; then
+    line=$(printf '%s %b \033[32m✓ tests\033[0m' "$line" "$sep" )
+elif [[ "$cache_test" == "fail" ]]; then
+    line=$(printf '%s %b \033[31m✗ tests\033[0m' "$line" "$sep")
+fi
+
+# Subagents (yellow, only if active > 0)
+if [[ "$cache_agents" -gt 0 && -n "$cache_agents_types" ]]; then
+    line=$(printf '%s %b \033[33m⚡%d agents (%s)\033[0m' "$line" "$sep" "$cache_agents" "$cache_agents_types")
+elif [[ "$cache_agents" -gt 0 ]]; then
+    line=$(printf '%s %b \033[33m⚡%d agents\033[0m' "$line" "$sep" "$cache_agents")
+fi
 
 # Add todo segment only if count > 0
 if [[ "$todo_count" -gt 0 ]]; then
