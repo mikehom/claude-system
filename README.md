@@ -1,4 +1,12 @@
-# JAGS' Batteries-Included Claude Code Config
+# The System's Thinker's Vibecoding Starter kit
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/juanandresgs/claude-system)](https://github.com/juanandresgs/claude-system/stargazers)
+[![Last commit](https://img.shields.io/github/last-commit/juanandresgs/claude-system)](https://github.com/juanandresgs/claude-system/commits/main)
+[![Shell](https://img.shields.io/badge/language-bash-green.svg)](hooks/)
+[![Validate Hooks](https://github.com/juanandresgs/claude-system/actions/workflows/validate.yml/badge.svg)](https://github.com/juanandresgs/claude-system/actions/workflows/validate.yml)
+
+JAGS' batteries-included Claude Code config
 
 A multi-agent workflow for Claude Code that enforces plan-first development, worktree isolation, test-first implementation, and approval gates through deterministic hooks.
 
@@ -6,6 +14,37 @@ A multi-agent workflow for Claude Code that enforces plan-first development, wor
 - **24 hooks + 2 shared libraries** — Mechanical enforcement of engineering practices at every lifecycle event
 - **Research skills** — Multi-model deep research and recent web discussion analysis
 - **Split settings** — Tracked universal config + gitignored local overrides
+
+---
+
+## Quick Proof
+
+Here's what the hook system does in practice — no configuration, no hoping the model remembers, just mechanical enforcement:
+
+```
+You:     echo 'test' > /tmp/scratch.txt
+guard.sh: ✅ REWRITE → mkdir -p tmp && echo 'test' > tmp/scratch.txt
+          /tmp/ is forbidden. Transparently rewritten to project tmp/.
+
+You:     git push --force origin feature
+guard.sh: ✅ REWRITE → git push --force-with-lease origin feature
+          --force rewritten to --force-with-lease. Your reflog says thanks.
+
+You:     git commit -m "quick fix"          (on main branch)
+guard.sh: ❌ DENY — Cannot commit on main. Sacred Practice #2.
+          Action: Use Guardian agent to create an isolated worktree.
+
+You:     [writes src/auth.ts]               (tests are failing)
+test-gate.sh: ⚠️ WARNING — Tests failing. Strike 1 of 2.
+              [writes again]
+test-gate.sh: ❌ DENY — Tests still failing. Fix tests before continuing.
+
+You:     [writes src/auth.ts]               (no MASTER_PLAN.md exists)
+plan-check.sh: ❌ DENY — No plan found. Sacred Practice #6.
+               Action: Invoke Planner agent first.
+```
+
+Every check runs deterministically via hooks — not instructions that degrade with context pressure. The model doesn't need to remember the rules. The hooks enforce them.
 
 ---
 
@@ -27,6 +66,31 @@ This system is opinionated. That's the point. The opinions are:
 - Hooks enforce what instructions suggest.
 
 If you disagree with an opinion, change the hook that enforces it. The architecture makes that straightforward.
+
+---
+
+## Who This Is For
+
+- **Solo developers** who want guardrails against their own shortcuts — you know you shouldn't commit to main at 2am, but you will unless something stops you
+- **Teams standardizing Claude Code** across developers — same hooks, same practices, same enforcement regardless of who's running the session
+- **Anyone burned by Claude Code defaults** — it committed untested code to main, it force-pushed, it started building before understanding the requirement, and you lost an afternoon cleaning up
+
+## How It Compares
+
+| | **claude-system** | everything-claude-code | claude-code-showcase | hooks-mastery | claude-pipeline |
+|---|---|---|---|---|---|
+| **Approach** | Deterministic hook enforcement | Broad toolkit (agents + commands + skills) | Config showcase + GH Actions | Educational hook demos | Quality gates + role agents |
+| **Hook count** | 24 + 2 shared libs | Prompt-based | Varies | ~10 demo hooks | 2 hooks |
+| **Enforcement** | Mechanical (hooks run regardless of context) | Instruction-based (degrades with context) | Instruction-based | N/A (educational) | Partial (2 hooks) |
+| **Plan enforcement** | Hard gate — no code without MASTER_PLAN.md | Optional | No | No | No |
+| **Test gating** | Escalating — warn then block; commit requires evidence | Optional | No | No | Yes |
+| **Branch protection** | Hard deny writes on main at tool level | Instructions only | No | No | No |
+| **Mock detection** | Escalating — warns then blocks internal mocks | No | No | No | No |
+| **Agent model** | 3 agents (Planner/Implementer/Guardian) | 12+ agents | Flexible | N/A | Role-based |
+| **Decision tracking** | @decision annotations enforced by hooks | No | No | No | No |
+| **Best for** | Disciplined SDLC enforcement | Breadth of capabilities | Flexibility & templates | Learning hooks | Lightweight gates |
+
+This system is narrower but deeper than the alternatives. It doesn't try to be everything — it enforces a specific engineering workflow at the mechanical level.
 
 ---
 
