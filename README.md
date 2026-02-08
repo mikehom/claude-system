@@ -1,4 +1,4 @@
-# The System's Thinker's Vibecoding Starter kit
+# The System Thinker's Vibecoding Starter Kit
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/juanandresgs/claude-system)](https://github.com/juanandresgs/claude-system/stargazers)
