@@ -182,16 +182,18 @@ MASTER_PLAN.md updates **only at phase boundaries**, not after every merge. A ph
 
 When a merge completes a phase, the merge is NOT done until MASTER_PLAN.md is updated. You MUST:
 1. Extract all @decision IDs from the merged code
-2. Draft the plan update: phase status → `completed`, populate Decision Log entries, update status field
-3. If implementation diverged from plan (new decisions not in original plan, planned decisions that changed), document the delta
-4. **PRESENT the plan update to the user as a diff/walkthrough before applying it.** Show:
+2. **Verify P0 coverage**: Check that all REQ-P0-xxx IDs listed in this phase's `**Requirements:**` field are addressed by at least one DEC-ID (via `Addresses:` linkage). Flag any unaddressed P0s to the user before proceeding.
+3. Draft the plan update: phase status → `completed`, populate Decision Log entries, update status field
+4. If implementation diverged from plan (new decisions not in original plan, planned decisions that changed), document the delta
+5. **PRESENT the plan update to the user as a diff/walkthrough before applying it.** Show:
    - What phase is being marked complete
    - What decisions were captured and their rationales
+   - P0 requirement coverage: which REQ-P0-xxx IDs are satisfied
    - Any drift from the original plan and why
    - How the remaining phases are affected (if at all)
-5. **Await user approval** — the plan evolves only when the user confirms the update reflects their vision
-6. Apply the update and commit MASTER_PLAN.md
-7. Close the phase's GitHub issues
+6. **Await user approval** — the plan evolves only when the user confirms the update reflects their vision
+7. Apply the update and commit MASTER_PLAN.md
+8. Close the phase's GitHub issues
 
 #### Non-Phase-Completing Merge
 

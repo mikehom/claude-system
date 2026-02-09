@@ -6,7 +6,8 @@ set -euo pipefail
 #
 # Performs the full /surface pipeline: extract → validate → report.
 # No external documentation is generated (Code is Truth).
-# Reports: files changed, @decision coverage, validation issues.
+# Reports: files changed, @decision coverage, validation issues,
+#   REQ-ID traceability (P0s addressed by DEC-IDs), non-goal violations.
 #
 # Checks stop_hook_active to prevent re-firing loops.
 
@@ -256,6 +257,34 @@ if [[ -f "$PROJECT_ROOT/MASTER_PLAN.md" ]]; then
     if [[ "$TOTAL_PHASES" -gt 0 ]]; then
         log_info "PLAN-SYNC" "Phase status: $COMPLETED_PHASES/$TOTAL_PHASES completed"
     fi
+
+    # --- REQ-ID traceability audit ---
+    # Extract P0 REQ-IDs from MASTER_PLAN.md
+    PLAN_P0_REQS=$(grep -oE 'REQ-P0-[0-9]+' "$PROJECT_ROOT/MASTER_PLAN.md" 2>/dev/null | sort -u || echo "")
+    UNADDRESSED_P0S=""
+    if [[ -n "$PLAN_P0_REQS" && -n "$PLAN_DECS" ]]; then
+        # For each P0, check if any DEC-ID has "Addresses: ...REQ-P0-NNN"
+        while IFS= read -r req; do
+            [[ -z "$req" ]] && continue
+            if ! grep -qE "Addresses:.*$req" "$PROJECT_ROOT/MASTER_PLAN.md" 2>/dev/null; then
+                UNADDRESSED_P0S+="$req "
+            fi
+        done <<< "$PLAN_P0_REQS"
+    fi
+    if [[ -n "$UNADDRESSED_P0S" ]]; then
+        log_info "REQ-TRACE" "Unaddressed P0 requirements (no DEC-ID with Addresses:): $UNADDRESSED_P0S"
+    fi
+
+    # --- Non-goal violation check ---
+    # Extract non-goal keywords from MASTER_PLAN.md Non-Goals section
+    NOGO_VIOLATIONS=""
+    NOGO_SECTION=$(sed -n '/^## *Non-Goals\|^### *Non-Goals/,/^##[^#]/p' "$PROJECT_ROOT/MASTER_PLAN.md" 2>/dev/null | head -20 || echo "")
+    PLAN_NOGOS=$(echo "$NOGO_SECTION" | grep -oE 'REQ-NOGO-[0-9]+' 2>/dev/null | sort -u || echo "")
+    # Advisory: just count non-goals for drift data
+    NOGO_COUNT=0
+    if [[ -n "$PLAN_NOGOS" ]]; then
+        NOGO_COUNT=$(echo "$PLAN_NOGOS" | wc -l | tr -d ' ')
+    fi
 fi
 
 # --- Append key findings to audit log ---
@@ -279,6 +308,8 @@ DRIFT_FILE="${PROJECT_ROOT}/.claude/.plan-drift"
     echo "missing_decisions=${MISSING_COUNT:-0}"
     echo "total_decisions=${TOTAL_DECISIONS:-0}"
     echo "source_files_changed=${TOTAL_CHANGED:-0}"
+    echo "unaddressed_p0s=$(echo "${UNADDRESSED_P0S:-}" | wc -w | tr -d ' ')"
+    echo "nogo_count=${NOGO_COUNT:-0}"
 } > "$DRIFT_FILE"
 
 # --- Emit systemMessage so findings reach the model on next turn ---
@@ -296,6 +327,9 @@ if [[ -n "${CODE_NOT_PLAN:-}" || -n "${PLAN_NOT_CODE:-}" ]]; then
 fi
 if [[ "${TOTAL_PHASES:-0}" -gt 0 ]]; then
     SUMMARY_PARTS+=("Phase status: $COMPLETED_PHASES/$TOTAL_PHASES completed")
+fi
+if [[ -n "${UNADDRESSED_P0S:-}" ]]; then
+    SUMMARY_PARTS+=("Unaddressed P0 reqs: $UNADDRESSED_P0S")
 fi
 
 SUMMARY=$(printf '%s\n' "${SUMMARY_PARTS[@]}")

@@ -16,7 +16,9 @@
 #                                      PLAN_AGE_DAYS, PLAN_COMMITS_SINCE,
 #                                      PLAN_CHANGED_SOURCE_FILES,
 #                                      PLAN_TOTAL_SOURCE_FILES,
-#                                      PLAN_SOURCE_CHURN_PCT
+#                                      PLAN_SOURCE_CHURN_PCT,
+#                                      PLAN_REQ_COUNT, PLAN_P0_COUNT,
+#                                      PLAN_NOGO_COUNT
 #   get_session_changes <project_root> - Populates SESSION_CHANGED_COUNT
 #   get_drift_data <project_root>    - Populates DRIFT_UNPLANNED_COUNT,
 #                                      DRIFT_UNIMPLEMENTED_COUNT,
@@ -55,12 +57,18 @@ get_plan_status() {
     PLAN_CHANGED_SOURCE_FILES=0
     PLAN_TOTAL_SOURCE_FILES=0
     PLAN_SOURCE_CHURN_PCT=0
+    PLAN_REQ_COUNT=0
+    PLAN_P0_COUNT=0
+    PLAN_NOGO_COUNT=0
 
     [[ ! -f "$root/MASTER_PLAN.md" ]] && return
 
     PLAN_EXISTS=true
 
     PLAN_PHASE=$(grep -iE '^\#.*phase|^\*\*Phase' "$root/MASTER_PLAN.md" 2>/dev/null | tail -1 || echo "")
+    PLAN_REQ_COUNT=$(grep -coE 'REQ-[A-Z0-9]+-[0-9]+' "$root/MASTER_PLAN.md" 2>/dev/null || echo "0")
+    PLAN_P0_COUNT=$(grep -coE 'REQ-P0-[0-9]+' "$root/MASTER_PLAN.md" 2>/dev/null || echo "0")
+    PLAN_NOGO_COUNT=$(grep -coE 'REQ-NOGO-[0-9]+' "$root/MASTER_PLAN.md" 2>/dev/null || echo "0")
     PLAN_TOTAL_PHASES=$(grep -cE '^\#\#\s+Phase\s+[0-9]' "$root/MASTER_PLAN.md" 2>/dev/null || echo "0")
     PLAN_COMPLETED_PHASES=$(grep -cE '\*\*Status:\*\*\s*completed' "$root/MASTER_PLAN.md" 2>/dev/null || echo "0")
     PLAN_IN_PROGRESS_PHASES=$(grep -cE '\*\*Status:\*\*\s*in-progress' "$root/MASTER_PLAN.md" 2>/dev/null || echo "0")

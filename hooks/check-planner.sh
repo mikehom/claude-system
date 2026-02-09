@@ -46,6 +46,21 @@ else
     if ! grep -qiE 'issue|task|TODO|work.?item' "$PLAN" 2>/dev/null; then
         ISSUES+=("MASTER_PLAN.md may lack git issues or task breakdown")
     fi
+
+    # Check 6: Has structured requirements sections (Goals, Non-Goals, Requirements)
+    # Only flag for multi-phase plans — single-phase plans (Tier 1) are expected to be brief
+    if [[ "$PHASE_COUNT" -gt 1 ]]; then
+        HAS_REQS=true
+        if ! grep -qiE '^\#\#\s*(Goals|Goals\s*&\s*Non.Goals)' "$PLAN" 2>/dev/null; then
+            HAS_REQS=false
+        fi
+        if ! grep -qiE '^\#\#\s*Requirements|^\#\#\#\s*Must.Have' "$PLAN" 2>/dev/null; then
+            HAS_REQS=false
+        fi
+        if [[ "$HAS_REQS" == "false" ]]; then
+            ISSUES+=("MASTER_PLAN.md may lack structured requirements (Goals, Non-Goals, Requirements with P0/P1/P2)")
+        fi
+    fi
 fi
 
 # Check 5: Approval-loop detection — agent should not end with unanswered question

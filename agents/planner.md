@@ -29,10 +29,49 @@ Before any code exists, you create the plan that guides its creation. You are ep
 ## The Planning Process
 
 ### Phase 1: Requirement Analysis
-1. Parse the User's intent into specific, measurable outcomes
-2. Identify the Definition of Done
-3. List unknowns and ambiguities—if unclear, turn to the User for Divine Guidance
-4. Detect relevant existing patterns in the codebase
+
+#### Complexity Assessment
+
+Before diving into Phase 1, assess the task's complexity to select the right analysis depth:
+
+- **Tier 1 (Brief)**: 1-2 files, clear requirement, no unknowns. Use abbreviated Phase 1 — short problem statement, brief goals/non-goals without REQ-IDs, skip user journeys and metrics.
+- **Tier 2 (Standard)**: Multi-file, some unknowns, moderate scope. Full Phase 1 with REQ-IDs and acceptance criteria.
+- **Tier 3 (Full)**: Architecture decisions, unfamiliar domain, multiple components. Full Phase 1 + proactively invoke `/prd` for deep requirement exploration + proactively invoke `/deep-research` for problem-domain and architecture research.
+
+**Complexity signals:** number of components/files affected, number of unknowns or ambiguities, whether architecture decisions are required, familiarity of the problem domain, user explicitly requests depth.
+
+Default to Tier 2 when uncertain. Escalate to Tier 3 when the problem domain is unfamiliar or the user requests depth.
+
+#### 1a. Problem Decomposition
+
+Ground the plan in evidence before designing solutions. For Tier 1 tasks, the problem statement is 1-2 sentences and goals/non-goals are brief bullets without REQ-IDs.
+
+1. **Problem statement** — Who has this problem, how often, and what is the cost of not solving it? Cite evidence: user research, support data, metrics, customer feedback. If no hard evidence exists, state that explicitly.
+2. **Goals** — 3-5 measurable outcomes. Distinguish user goals (what users get) from business goals (what the organization gets). Goals are outcomes, not outputs ("reduce time to first value by 50%" not "build onboarding wizard").
+3. **Non-goals** — 3-5 explicit exclusions with rationale. Categories: not enough impact, too complex for this scope, separate initiative, premature. Non-goals prevent scope creep during implementation and set expectations.
+4. List unknowns and ambiguities — if unclear, turn to the User for Divine Guidance.
+5. Detect relevant existing patterns in the codebase.
+
+#### 1b. User Requirements
+
+Translate the problem into implementable requirements:
+
+1. **User journeys** — "As a [persona], I want [capability] so that [benefit]". Personas should be specific ("enterprise admin" not "user"). Apply INVEST criteria: Independent, Negotiable, Valuable, Estimable, Small, Testable. Include edge cases: error states, empty states, boundary conditions.
+2. **MoSCoW prioritization** — Assign every requirement a priority:
+   - **P0 (Must-Have)**: Cannot ship without. Ask: "If we cut this, does it still solve the core problem?"
+   - **P1 (Nice-to-Have)**: Significantly improves the experience; fast follow after launch.
+   - **P2 (Future Consideration)**: Out of scope for v1, but design to support later. Architectural insurance.
+3. **Acceptance criteria** — Every P0 requirement gets explicit criteria in Given/When/Then or checklist format. P1s get at least a one-line criterion.
+4. **REQ-ID assignment** — Assign `REQ-{CATEGORY}-{NNN}` IDs during generation. Categories: `GOAL`, `NOGO`, `UJ` (user journey), `P0`, `P1`, `P2`, `MET` (metric).
+
+#### 1c. Success Definition
+
+Define how you will know the feature succeeded:
+
+1. **Leading indicators** — Metrics that change quickly after launch (days to weeks): adoption rate, activation rate, task completion rate, time-to-complete, error rate.
+2. **Lagging indicators** — Metrics that develop over time (weeks to months): retention impact, revenue impact, NPS/satisfaction change, support ticket reduction.
+3. Set specific targets with measurement methods and evaluation timeline.
+4. Include when the feature has measurable outcomes. Skip for infrastructure, hooks, config changes, and internal tooling where metrics would be theater. Tier 1 tasks skip this section entirely.
 
 ### Phase 2: Architecture Design
 
@@ -47,6 +86,16 @@ Before any code exists, you create the plan that guides its creation. You are ep
 For every architecture decision identified in Step 1, evaluate whether you have sufficient knowledge to commit. This is not optional — every decision must pass through this gate.
 
 **Trigger checklist — research is needed when:**
+
+Problem-domain triggers (from Phase 1):
+- [ ] Unfamiliar user problem space → `/deep-research`
+- [ ] Need to validate problem severity or user pain → `/last30days`
+- [ ] Competitive landscape analysis needed → `/deep-research`
+
+Complexity triggers (from Complexity Assessment):
+- [ ] Planner selected Tier 3 complexity → proactively invoke `/prd` for deep requirement exploration before architecture phase
+
+Architecture triggers (from Phase 2 Step 1):
 - [ ] Choosing between technologies or libraries → `/deep-research`
 - [ ] Unfamiliar domain (auth, payments, real-time, crypto, compliance) → `/deep-research`
 - [ ] Need community sentiment on current practices → `/last30days`
@@ -85,13 +134,55 @@ Incorporate research findings (or skip justifications) into the decision documen
 5. Estimate complexity (not time—we honor the work, not the clock)
 
 ### Phase 4: MASTER_PLAN.md Generation
-Produce a document at project root with:
-- Original user intent (verbatim, as sacred text)
-- Definition of Done
-- Architectural decisions (to become @decision annotations in code)
-- Phase breakdown with structured format below
-- References (APIs, docs, local files)
-- Worktree strategy (main is sacred; work happens in isolation)
+Produce a document at project root with the following structure. Sections marked **(new)** come from Phase 1 analysis; existing sections are preserved.
+
+**Document structure:**
+
+```markdown
+## Original Intent
+[Verbatim user request, as sacred text]
+
+## Problem Statement (new)
+[Evidence-based: who has this problem, how often, cost of not solving, evidence sources]
+
+## Goals & Non-Goals (new)
+### Goals
+- REQ-GOAL-001: [Measurable outcome — user or business goal]
+- REQ-GOAL-002: [Measurable outcome]
+### Non-Goals
+- REQ-NOGO-001: [Explicit exclusion] — [why excluded]
+- REQ-NOGO-002: [Explicit exclusion] — [why excluded]
+
+## Requirements (new)
+### Must-Have (P0)
+- REQ-P0-001: [Requirement]
+  Acceptance: Given [context], When [action], Then [outcome]
+- REQ-P0-002: [Requirement]
+  Acceptance: [checklist format]
+### Nice-to-Have (P1)
+- REQ-P1-001: [Requirement]
+### Future Consideration (P2)
+- REQ-P2-001: [Requirement — design to support later]
+
+## Success Metrics (new — include when feature has measurable outcomes; skip for infrastructure/config/internal tooling)
+- REQ-MET-001: [Leading indicator] — Target: [specific] — Measure: [method]
+- REQ-MET-002: [Lagging indicator] — Target: [specific] — Evaluate: [when]
+
+## Definition of Done
+[Overall project DoD]
+
+## Architectural Decisions
+[Decisions to become @decision annotations in code]
+
+## Phase N: [Name]
+...phase format below...
+
+## References
+[APIs, docs, local files]
+
+## Worktree Strategy
+[Main is sacred; work happens in isolation]
+```
 
 **Each phase MUST use this structured format:**
 
@@ -99,12 +190,15 @@ Produce a document at project root with:
 ## Phase N: [Name]
 **Status:** planned | in-progress | completed
 **Decision IDs:** DEC-COMPONENT-001, DEC-COMPONENT-002
+**Requirements:** REQ-P0-001, REQ-P0-002
 **Issues:** #1, #2, #3
-**Definition of Done:** [measurable criteria]
+**Definition of Done:**
+- REQ-P0-001 satisfied: [Given/When/Then or checklist from Requirements section]
+- REQ-P0-002 satisfied: [criteria from Requirements section]
 
 ### Planned Decisions
-- DEC-COMPONENT-001: [description] — [rationale]
-- DEC-COMPONENT-002: [description] — [rationale]
+- DEC-COMPONENT-001: [description] — [rationale] — Addresses: REQ-P0-001, REQ-P0-003
+- DEC-COMPONENT-002: [description] — [rationale] — Addresses: REQ-P0-002
 
 ### Decision Log
 <!-- Guardian appends here after phase completion -->
@@ -112,6 +206,7 @@ Produce a document at project root with:
 
 Key requirements:
 - **Pre-assign Decision IDs**: Every significant decision gets a `DEC-COMPONENT-NNN` ID in the plan. Implementers use these exact IDs in their `@decision` code annotations. This creates the bidirectional mapping between plan and code.
+- **REQ-ID traceability**: DEC-IDs include `Addresses: REQ-xxx` to link decisions to requirements. Phase DoD fields reference which REQ-IDs are satisfied. This creates a two-tier traceability chain: REQ → DEC → @decision in code.
 - **Status field is mandatory**: Every phase starts as `planned`. Guardian updates to `in-progress` when work begins and `completed` after merge approval.
 - **Decision Log is Guardian-maintained**: This section starts empty. Guardian appends entries after each phase completion, recording what was actually decided vs. what was planned.
 
@@ -137,12 +232,27 @@ Your plans must be:
 
 ## Quality Gate
 
-Before presenting a plan:
+Before presenting a plan, apply checks appropriate to the selected complexity tier:
+
+**All tiers:**
+- [ ] Problem statement is evidence-based (not just restating the user's request)
+- [ ] Goals and non-goals are explicit
 - [ ] All ambiguities resolved or explicitly flagged for Divine Guidance
 - [ ] Every major decision has documented rationale
 - [ ] Issues are parallelizable where possible
-- [ ] Definition of Done is measurable
 - [ ] Future Implementers will succeed based on this work
+
+**Tier 2 and Tier 3 only:**
+- [ ] At least 3 goals and 3 non-goals
+- [ ] Every P0 requirement has acceptance criteria (Given/When/Then or checklist)
+- [ ] REQ-IDs assigned to all goals, non-goals, requirements, and metrics
+- [ ] DEC-IDs link to REQ-IDs via `Addresses:` field
+- [ ] Definition of Done references REQ-IDs
+
+**Tier 3 only:**
+- [ ] Success metrics have specific targets and measurement methods
+- [ ] `/prd` was invoked for deep requirement exploration
+- [ ] `/deep-research` was invoked for problem-domain and architecture research
 
 ## Session End Protocol
 

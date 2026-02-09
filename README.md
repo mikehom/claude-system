@@ -37,8 +37,12 @@ The model writes on main, skips tests, force-pushes, and forgets the plan once t
                 └──────────────────┬──────────────────────┘
                                    ▼
                 ┌──────────────────────────────────────────┐
-                │  Planner agent designs MASTER_PLAN.md    │
-                │  + creates GitHub Issues                 │
+                │  Planner agent:                          │
+                │    1a. Problem decomposition (evidence)   │
+                │    1b. User requirements (P0/P1/P2)      │
+                │    1c. Success metrics                   │
+                │    2.  Research gate → architecture       │
+                │  → MASTER_PLAN.md + GitHub Issues         │
                 └──────────────────┬───────────────────────┘
                                    ▼
                 ┌──────────────────────────────────────────┐
@@ -169,7 +173,7 @@ The harness auto-checks for updates on every new session start. Same-MAJOR-versi
 
 | Agent | Model | Role | Key Output |
 |-------|-------|------|------------|
-| **Planner** | Opus | Requirements analysis, architecture design, research gate | MASTER_PLAN.md, GitHub Issues, research log |
+| **Planner** | Opus | Complexity assessment (Brief/Standard/Full tiers), problem decomposition, requirements (P0/P1/P2 with acceptance criteria), success metrics, architecture design, research gate | MASTER_PLAN.md (with REQ-IDs + DEC-IDs), GitHub Issues, research log |
 | **Implementer** | Sonnet | Test-first coding in isolated worktrees | Working code, tests, @decision annotations |
 | **Guardian** | Opus | Git operations, merge analysis, plan evolution | Commits, merges, phase reviews, plan updates |
 
@@ -217,7 +221,7 @@ For the full protocol, detailed tables, enforcement patterns, state files, and s
 | **session-init.sh** | SessionStart | Inject git state, update status, plan status, worktrees, todo HUD |
 | **prompt-submit.sh** | UserPromptSubmit | Keyword-based context injection, deferred-work detection |
 | **compact-preserve.sh** | PreCompact | Dual-path context preservation across compaction |
-| **surface.sh** | Stop | Decision audit: extract, validate, reconcile @decision coverage |
+| **surface.sh** | Stop | Decision audit: extract, validate, reconcile @decision coverage, REQ-ID traceability |
 | **session-summary.sh** | Stop | File counts, git state, workflow-aware next-action guidance |
 | **forward-motion.sh** | Stop | Ensure response ends with question, suggestion, or offer |
 | **notify.sh** | Notification | Desktop alert when Claude needs attention (macOS) |
@@ -242,6 +246,19 @@ The `@decision` annotation maps MASTER_PLAN.md decision IDs to source code. The 
 
 Also supported: `# DECISION:` (Python/Shell) and `// DECISION:` (Go/Rust/C). Detection regex: `@decision|# DECISION:|// DECISION:`. See [`hooks/HOOKS.md`](hooks/HOOKS.md) for enforcement details.
 
+### Two-Tier Traceability
+
+Requirements and decisions live in a single artifact (MASTER_PLAN.md) with bidirectional linkage to source code:
+
+```
+MASTER_PLAN.md                         Source Code
+REQ-P0-001 (requirement)               @decision DEC-AUTH-001
+DEC-AUTH-001 (decision)                   Addresses: REQ-P0-001
+  Addresses: REQ-P0-001
+```
+
+REQ-IDs (`REQ-{CATEGORY}-{NNN}`) are assigned during planning. DEC-IDs link to REQ-IDs via `Addresses:`. Phases reference which REQ-IDs they satisfy. `surface.sh` audits unaddressed P0 requirements at session end. `plan-validate.sh` validates REQ-ID format on every MASTER_PLAN.md write.
+
 ---
 
 ## Skills and Commands
@@ -250,6 +267,7 @@ Also supported: `# DECISION:` (Python/Shell) and `// DECISION:` (Go/Rust/C). Det
 |-------|---------|
 | **deep-research** | Multi-model research via OpenAI + Perplexity + Gemini with comparative synthesis |
 | **last30days** | Recent discussions from Reddit, X, and web with engagement metrics (submodule) |
+| **prd** | Optional deep-dive PRD: problem statement, user journeys, requirements, success metrics |
 | **context-preservation** | Structured summaries for session continuity across compaction |
 
 | Command | Purpose |
