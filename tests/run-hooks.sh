@@ -26,6 +26,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 HOOKS_DIR="$(dirname "$SCRIPT_DIR")/hooks"
 FIXTURES_DIR="$SCRIPT_DIR/fixtures"
 
+# Source context-lib for safe_cleanup (prevents CWD bricking on rm -rf)
+source "$HOOKS_DIR/context-lib.sh"
+
 passed=0
 failed=0
 skipped=0
@@ -232,7 +235,7 @@ if [[ -f "$FIXTURES_DIR/guard-safe-command.json" ]]; then
 fi
 
 # Cleanup
-rm -rf "$CROSS_TEST_DIR"
+safe_cleanup "$CROSS_TEST_DIR" "$SCRIPT_DIR"
 rm -f "$CROSS_FIXTURE"
 echo ""
 
@@ -386,7 +389,7 @@ if echo "$SL_OUTPUT" | grep -q "tests"; then
 else
     fail "statusline.sh — test status" "expected 'tests' in output: $SL_OUTPUT"
 fi
-rm -rf "$SL_TEST_DIR"
+safe_cleanup "$SL_TEST_DIR" "$SCRIPT_DIR"
 echo ""
 
 # --- Test: statusline.sh — works without cache ---
@@ -398,7 +401,7 @@ if [[ -n "$SL_OUTPUT2" ]]; then
 else
     fail "statusline.sh — no cache" "no output produced"
 fi
-rm -rf "$SL_TEST_DIR2"
+safe_cleanup "$SL_TEST_DIR2" "$SCRIPT_DIR"
 echo ""
 
 # --- Test: statusline.sh — subagent tracking ---
@@ -413,7 +416,7 @@ if echo "$SA_OUTPUT" | grep -q "agents"; then
 else
     fail "statusline.sh — agent count" "expected 'agents' in output: $SA_OUTPUT"
 fi
-rm -rf "$SA_TEST_DIR"
+safe_cleanup "$SA_TEST_DIR" "$SCRIPT_DIR"
 echo ""
 
 # --- Test: update-check.sh ---
@@ -460,7 +463,7 @@ done < <(
         echo "GRACEFUL_FAIL:$output"
     fi
 )
-rm -rf "$UPD_TEST_DIR"
+safe_cleanup "$UPD_TEST_DIR" "$SCRIPT_DIR"
 
 # Disable toggle test: create flag file, script should exit immediately
 UPD_TEST_DIR2=$(mktemp -d)
@@ -483,7 +486,7 @@ done < <(
         echo "DISABLE_FAIL"
     fi
 )
-rm -rf "$UPD_TEST_DIR2"
+safe_cleanup "$UPD_TEST_DIR2" "$SCRIPT_DIR"
 echo ""
 
 # --- Test: Plan lifecycle — completed plan detection ---
@@ -565,7 +568,7 @@ rm -f "$PL_TEST_DIR/MASTER_PLAN.md"
     fi
 done
 
-rm -rf "$PL_TEST_DIR"
+safe_cleanup "$PL_TEST_DIR" "$SCRIPT_DIR"
 echo ""
 
 # --- Test: Plan archival ---
@@ -611,7 +614,7 @@ else
     fail "archival — breadcrumb" "no .last-plan-archived file"
 fi
 
-rm -rf "$PA_TEST_DIR"
+safe_cleanup "$PA_TEST_DIR" "$SCRIPT_DIR"
 echo ""
 
 # --- Test: plan-check.sh — completed plan denial ---
@@ -667,7 +670,7 @@ else
     fail "plan-check.sh — active plan" "should allow but got deny"
 fi
 
-rm -rf "$PC_TEST_DIR"
+safe_cleanup "$PC_TEST_DIR" "$SCRIPT_DIR"
 echo ""
 
 
