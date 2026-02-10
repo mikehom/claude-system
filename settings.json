@@ -51,7 +51,10 @@
       "Bash(wc *)",
       "Bash(which *)",
       "Bash(whoami)",
+      "Bash(gh *)",
       "Bash(git *)",
+      "Bash(~/.claude/scripts/*.sh *)",
+      "Bash($HOME/.claude/scripts/*.sh *)",
       "Bash(xargs *)",
       "Bash(xxd *)",
       "Read",
@@ -82,16 +85,6 @@
   ],
   "hooks": {
     "SessionStart": [
-      {
-        "matcher": "startup",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$HOME/.claude/scripts/update-check.sh",
-            "timeout": 10
-          }
-        ]
-      },
       {
         "matcher": "startup|resume|clear|compact",
         "hooks": [

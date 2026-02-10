@@ -127,8 +127,7 @@ Source with: `source "$(dirname "$0")/context-lib.sh"`
 ## Execution Order (Session Lifecycle)
 
 ```
-SessionStart    → update-check.sh (fetch + auto-update, startup only)
-                → session-init.sh (git state, update status, plan status, worktree warnings)
+SessionStart    → session-init.sh (calls update-check.sh inline, then git state, update status, plan status, worktree warnings)
                     ↓
 UserPromptSubmit → prompt-submit.sh (keyword-based context injection)
                     ↓
@@ -182,8 +181,8 @@ Hooks within the same event run **sequentially** in array order from settings.js
 
 | Hook | Event | What It Does |
 |------|-------|--------------|
-| **update-check.sh** | SessionStart (startup) | Fetches origin/main, compares versions. Auto-applies safe updates (same MAJOR). Notifies for breaking changes (different MAJOR). Aborts cleanly on conflict. Writes `.update-status` consumed by session-init.sh. Disabled by `.disable-auto-update` flag file |
-| **session-init.sh** | SessionStart | Injects git state, harness update status, MASTER_PLAN.md status, active worktrees, todo HUD, unresolved agent findings, preserved context from pre-compaction. Clears stale `.test-status` from previous sessions (prevents old passes from satisfying the commit gate). Resets prompt count for first-prompt fallback. Known: SessionStart has a bug ([#10373](https://github.com/anthropics/claude-code/issues/10373)) where output may not inject for brand-new sessions — works for `/clear`, `/compact`, resume |
+| **session-init.sh** | SessionStart | Calls update-check.sh inline (fixes race condition where parallel hooks caused one-session-late notifications), then injects git state, harness update status, MASTER_PLAN.md status, active worktrees, todo HUD, unresolved agent findings, preserved context from pre-compaction. Clears stale `.test-status` from previous sessions (prevents old passes from satisfying the commit gate). Resets prompt count for first-prompt fallback. Known: SessionStart has a bug ([#10373](https://github.com/anthropics/claude-code/issues/10373)) where output may not inject for brand-new sessions — works for `/clear`, `/compact`, resume |
+| **update-check.sh** | Called by session-init.sh | Fetches origin/main, compares versions. Auto-applies safe updates (same MAJOR). Notifies for breaking changes (different MAJOR). Aborts cleanly on conflict. Writes `.update-status` consumed by session-init.sh. Disabled by `.disable-auto-update` flag file |
 | **prompt-submit.sh** | UserPromptSubmit | First-prompt mitigation for SessionStart bug: on the first prompt of any session, injects full session context (same as session-init.sh) as a reliability fallback. On subsequent prompts: keyword-based context injection — file references trigger @decision status, "plan"/"implement" trigger MASTER_PLAN phase status, "merge"/"commit" trigger git dirty state. Also: auto-claims issue refs ("fix #42"), detects deferred-work language ("later", "eventually") and suggests `/backlog`, flags large multi-step tasks for scope confirmation |
 | **compact-preserve.sh** | PreCompact | Dual output: (1) persistent `.preserved-context` file that survives compaction and is re-injected by session-init.sh, and (2) `additionalContext` including a compaction directive instructing the model to generate a structured context summary (objective, active files, constraints, continuity handoff). Captures git state, plan status, session changes, @decision annotations, test status, agent findings, and audit trail |
 | **session-end.sh** | SessionEnd | Kills lingering async test-runner processes, releases todo claims for this session, cleans session-scoped files (`.session-changes-*`, `.prompt-count-*`, `.lint-cache`, strike counters). Preserves cross-session state (`.audit-log`, `.agent-findings`, `.plan-drift`). Trims audit log to last 100 entries |

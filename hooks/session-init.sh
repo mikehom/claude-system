@@ -20,6 +20,14 @@ source "$(dirname "$0")/context-lib.sh"
 PROJECT_ROOT=$(detect_project_root)
 CONTEXT_PARTS=()
 
+# --- Run update check first (guarantees .update-status exists) ---
+# Previously a separate SessionStart hook that raced with this script.
+# Inlined to ensure .update-status is written before we read it below.
+UPDATE_SCRIPT="$HOME/.claude/scripts/update-check.sh"
+if [[ -x "$UPDATE_SCRIPT" ]]; then
+    "$UPDATE_SCRIPT" 2>/dev/null || true
+fi
+
 # --- Git state ---
 get_git_state "$PROJECT_ROOT"
 
