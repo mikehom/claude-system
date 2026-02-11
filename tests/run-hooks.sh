@@ -33,6 +33,14 @@ FIXTURES_DIR="$SCRIPT_DIR/fixtures"
 # Source context-lib for safe_cleanup (prevents CWD bricking on rm -rf)
 source "$HOOKS_DIR/context-lib.sh"
 
+# Ensure git identity is configured for tests that create temp repos with commits.
+# CI environments (GitHub Actions) don't have user.email/user.name set, causing
+# git commit to fail with exit 128. This is scoped to --global so temp repos inherit it.
+if ! git config --global user.email >/dev/null 2>&1; then
+    git config --global user.email "test@ci.local"
+    git config --global user.name "CI Test Runner"
+fi
+
 passed=0
 failed=0
 skipped=0
