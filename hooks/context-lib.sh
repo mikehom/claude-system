@@ -90,7 +90,7 @@ get_plan_status() {
 
     # Plan age
     local plan_mod
-    plan_mod=$(stat -f '%m' "$root/MASTER_PLAN.md" 2>/dev/null || stat -c '%Y' "$root/MASTER_PLAN.md" 2>/dev/null || echo "0")
+    plan_mod=$(stat -c '%Y' "$root/MASTER_PLAN.md" 2>/dev/null || stat -f '%m' "$root/MASTER_PLAN.md" 2>/dev/null || echo "0")
     if [[ "$plan_mod" -gt 0 ]]; then
         local now
         now=$(date +%s)

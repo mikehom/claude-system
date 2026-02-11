@@ -94,7 +94,7 @@ if [[ ! -f "$TEST_STATUS_FILE" ]] && pgrep -f "test-runner\\.sh" >/dev/null 2>&1
 fi
 
 if [[ -f "$TEST_STATUS_FILE" ]]; then
-    FILE_MOD=$(stat -f '%m' "$TEST_STATUS_FILE" 2>/dev/null || stat -c '%Y' "$TEST_STATUS_FILE" 2>/dev/null || echo "0")
+    FILE_MOD=$(stat -c '%Y' "$TEST_STATUS_FILE" 2>/dev/null || stat -f '%m' "$TEST_STATUS_FILE" 2>/dev/null || echo "0")
     NOW=$(date +%s)
     FILE_AGE=$(( NOW - FILE_MOD ))
     if [[ "$FILE_AGE" -le "$SESSION_STALENESS_THRESHOLD" ]]; then
