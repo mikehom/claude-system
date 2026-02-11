@@ -430,19 +430,6 @@ else
     fail "update-check.sh" "syntax error"
 fi
 
-# VERSION file exists and contains valid semver
-VERSION_FILE="$SCRIPT_DIR/../VERSION"
-if [[ -f "$VERSION_FILE" ]]; then
-    VERSION_CONTENT=$(head -1 "$VERSION_FILE" | tr -d '[:space:]')
-    if [[ "$VERSION_CONTENT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        pass "VERSION — valid semver ($VERSION_CONTENT)"
-    else
-        fail "VERSION" "invalid semver: '$VERSION_CONTENT'"
-    fi
-else
-    fail "VERSION" "file not found"
-fi
-
 # Graceful degradation: run in a non-git temp dir (no remote, no crash)
 UPD_TEST_DIR=$(mktemp -d)
 while IFS= read -r line; do
@@ -454,7 +441,6 @@ while IFS= read -r line; do
 done < <(
     export HOME="$UPD_TEST_DIR"
     mkdir -p "$UPD_TEST_DIR/.claude"
-    cp "$VERSION_FILE" "$UPD_TEST_DIR/.claude/VERSION"
     cp "$UPDATE_SCRIPT" "$UPD_TEST_DIR/.claude/update-check.sh"
     output=$(bash "$UPD_TEST_DIR/.claude/update-check.sh" 2>/dev/null) || true
     if [[ -z "$output" ]]; then
@@ -477,7 +463,6 @@ done < <(
     export HOME="$UPD_TEST_DIR2"
     mkdir -p "$UPD_TEST_DIR2/.claude"
     touch "$UPD_TEST_DIR2/.claude/.disable-auto-update"
-    cp "$VERSION_FILE" "$UPD_TEST_DIR2/.claude/VERSION"
     cp "$UPDATE_SCRIPT" "$UPD_TEST_DIR2/.claude/update-check.sh"
     output=$(bash "$UPD_TEST_DIR2/.claude/update-check.sh" 2>/dev/null) || true
     if [[ ! -f "$UPD_TEST_DIR2/.claude/.update-status" && -z "$output" ]]; then

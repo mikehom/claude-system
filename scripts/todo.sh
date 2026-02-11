@@ -241,7 +241,7 @@ cmd_add() {
     local title=""
     local scope="project"
     local priority=""
-    local body="Captured via Claude Code /todo"
+    local body=""
     local image_path=""
     local use_gist=false
 
@@ -293,12 +293,10 @@ cmd_add() {
         fi
         target_repo="$CONFIG_REPO"
         repo_flag="--repo $CONFIG_REPO"
-        body="$body (config)"
     elif [[ "$scope" == "global" ]]; then
         ensure_global_repo
         target_repo="$GLOBAL_REPO"
         repo_flag="--repo $GLOBAL_REPO"
-        body="$body (global)"
     elif is_git_repo; then
         target_repo=$(get_repo_name)
         if [[ -z "$target_repo" ]]; then
@@ -306,13 +304,11 @@ cmd_add() {
             ensure_global_repo
             target_repo="$GLOBAL_REPO"
             repo_flag="--repo $GLOBAL_REPO"
-            body="$body (global - no remote)"
         fi
     else
         ensure_global_repo
         target_repo="$GLOBAL_REPO"
         repo_flag="--repo $GLOBAL_REPO"
-        body="$body (global - not in git repo)"
     fi
 
     # Ensure labels exist
@@ -325,21 +321,40 @@ cmd_add() {
         labels="$labels,priority:$priority"
     fi
 
-    # Add context to body
+    # Build structured body (use user-provided body or default template)
     local cwd
     cwd=$(pwd)
     local branch=""
     is_git_repo && branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
 
-    body="$body
+    if [[ -z "$body" ]]; then
+        body="## Problem
+${title}
+
+## Acceptance Criteria
+- [ ] TBD
+
+---
+Captured via Claude Code /backlog
+
+**Context:**
+- Directory: \`$cwd\`"
+        [[ -n "$branch" ]] && body="$body
+- Branch: \`$branch\`"
+        body="$body
+- Captured: $(date '+%Y-%m-%d %H:%M')"
+    else
+        # User provided --body, append context
+        body="$body
 
 ---
 **Context:**
 - Directory: \`$cwd\`"
-    [[ -n "$branch" ]] && body="$body
+        [[ -n "$branch" ]] && body="$body
 - Branch: \`$branch\`"
-    body="$body
+        body="$body
 - Captured: $(date '+%Y-%m-%d %H:%M')"
+    fi
 
     # Create the issue
     local result

@@ -69,7 +69,8 @@
       "mcp__context7__resolve-library-id",
       "mcp__context7__query-docs",
       "mcp__playwright__*",
-      "mcp__claude-in-chrome__*"
+      "mcp__claude-in-chrome__*",
+      "Skill(*)"
     ],
     "deny": [
       "Read(**/.env*)",

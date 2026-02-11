@@ -12,6 +12,9 @@
 .session-decisions
 .claude/
 
+# Generated decision log (hook output, never commit)
+DECISIONS.md
+
 # Large runtime directories
 projects/
 todos/
