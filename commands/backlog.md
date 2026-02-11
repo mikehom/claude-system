@@ -92,8 +92,15 @@ Treat the entire `$ARGUMENTS` as todo text (plus any flags like `--global`, `--c
 ```
 
 After creating the issue:
-1. **Cross-reference check:** Scan existing issues (both project and global — use session-init context or `todo.sh list --all`) for semantically related topics. If a related issue exists in either scope, add a comment on **both** issues linking them (e.g., "**Related:** owner/repo#N — <brief reason>"). This catches duplicates and ensures agents see connections when they pick up work.
-2. Confirm to the user with the issue URL and any cross-references found.
+1. **Extract the issue number** from the creation output URL (format: `https://github.com/owner/repo/issues/N`).
+2. **Clean up the title:** If the raw title is longer than 70 characters or reads as a stream-of-consciousness brain dump, propose a concise professional title (under 70 chars, imperative form) and apply it via `gh issue edit <N> --title "<clean title>"`. The original raw text is preserved in the issue body's Problem section.
+3. **Cross-reference check:** Scan existing issues (both project and global — use session-init context or `todo.sh list --all`) for semantically related topics. If a related issue exists in either scope, add a comment on **both** issues linking them (e.g., "**Related:** owner/repo#N — <brief reason>"). This catches duplicates and ensures agents see connections when they pick up work.
+4. **Brief interview:** Ask the user 1-2 quick follow-up questions using AskUserQuestion:
+   - "What does 'done' look like? Any specific acceptance criteria?" (header: "Criteria")
+   - Options: 2-3 concrete suggestions based on the title + "Skip — I'll fill this in later"
+   The question should be a single AskUserQuestion call with one question and relevant options inferred from the issue title.
+5. **Enrich if answered:** If the user provides acceptance criteria (not "Skip"), edit the issue body to replace the `- [ ] TBD` placeholder with the user's criteria via `gh issue edit <N> --body "<updated body>"`. Read the current body first, then substitute the TBD line.
+6. **Confirm** to the user with the issue URL, clean title, and any cross-references found.
 
 ## Scope Rules
 
